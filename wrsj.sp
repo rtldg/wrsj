@@ -13,6 +13,7 @@
 // Map of JSON objects with the mapname as the key.
 //--- Question: Wouldn't it be better and easier with an enum struct instead? ---//
 StringMap gS_Maps;
+EngineVersion g_EVGame;
 
 #define STRINGIFY_XD(%1) "%1"
 #define PLUGIN_VERSION_X 1.0
@@ -37,6 +38,12 @@ public Plugin myinfo = {
 
 public void OnPluginStart()
 {
+	g_EVGame = GetEngineVersion();
+	if(g_EVGame != Engine_CSS)
+	{
+		SetFailState("This plugin works only with Counter Strike: Source.");	
+	}
+	
 	gCV_SourceJumpAPIKey = new Convar("sj_api_key", "", "Replace with your unique api key.");
 	gCV_SourceJumpAPIUrl = new Convar("sj_api_url", "", "Can be changed for testing.");
 	gCV_SourceJumpDelay = new Convar("sj_api_delay", "1.0", "Minimum delay between requests to Sourcejump API.", 0, true, 0.5);
