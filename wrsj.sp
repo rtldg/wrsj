@@ -9,7 +9,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-/* Global defines */
+/* Globals*/
 // Map of JSON objects with the mapname as the key.
 //--- Question: Wouldn't it be better and easier with an enum struct instead? ---//
 StringMap gS_Maps;
@@ -20,12 +20,12 @@ EngineVersion gEV_Game;
 #define PLUGIN_VERSION STRINGIFY_XD(PLUGIN_VERSION_X)
 #define USERAGENT(%1) "wrsj-steamworks - version %1 (https://github.com/rtldg/wrsj)"
 
-/* Global CVARs */
 Convar gCV_SourceJumpAPIKey;
 Convar gCV_SourceJumpAPIUrl;
 Convar gCV_SourceJumpDelay;
 Convar gCV_SourceJumpCacheSize;
 Convar gCV_SourceJumpCacheTime;
+Convar gCV_SourceJumpWRCount;
 
 /* Plugin information */
 public Plugin myinfo = {
@@ -63,8 +63,15 @@ void BuildWRSJMenu(int client, char[] mapname)
 {
 	Menu menu = new Menu(Handler_WRSJMenu, MENU_ACTIONS_ALL);
 	menu.SetTitle("SJWR: (Showing %i best):\nTime - Player", gCV_SourceJumpWRCount.IntValue);
+	
+	/* 	Not sure about the fucking stringmaps, teach me master
+	int i_RecordsCount = (gCV_SourceJumpWRCount.IntValue < gS_Maps.Length) ? gCV_SourceJumpWRCount.IntValue : gS_Maps.Length;
 
-	// TODO: I'm guessing some for loop. I suck with menus.
+	for (int i = 0; i < i_RecordsCount; i++)
+	{
+		// Menu
+		// menu.AddItem(IDK SHIT ABOUT STRINGMAPS.mapname, Display);
+	} */
 
 	menu.Display(client, MENU_TIME_FOREVER);
 }
