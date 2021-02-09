@@ -49,6 +49,7 @@ public void OnPluginStart()
 	gCV_SourceJumpDelay = new Convar("sj_api_delay", "1.0", "Minimum delay between requests to Sourcejump API.", 0, true, 0.5);
 	gCV_SourceJumpCacheSize = new Convar("sj_api_cache_size", "12", "Number of maps to cache from Sourcejump API.");
 	gCV_SourceJumpCacheTime = new Convar("sj_api_cache_time", "666.0", "How many seconds to cache a map from Sourcejump API.", 0, true, 5.0);
+	gCV_SourceJumpWRCount = new Convar("sj_api_wr_count", "10", "How many top times should be shown in the !wrsj menu", 0, true, 5.0);
 
 	RegConsoleCmd("sm_wrsj", Command_WRSJ, "View global world records from Sourcejump's API.");
 	RegConsoleCmd("sm_sjwr", Command_WRSJ, "View global world records from Sourcejump's API.");
@@ -61,7 +62,7 @@ public void OnPluginStart()
 void BuildWRSJMenu(int client, char[] mapname)
 {
 	Menu menu = new Menu(Handler_WRSJMenu, MENU_ACTIONS_ALL);
-	menu.SetTitle("SJWR: (Showing %i best):\nTime - Player", gCV_SourceJumpCacheSize.IntValue);
+	menu.SetTitle("SJWR: (Showing %i best):\nTime - Player", gCV_SourceJumpWRAmmount.IntValue);
 
 	// TODO: I'm guessing some for loop. I suck with menus.
 
