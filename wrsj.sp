@@ -39,7 +39,7 @@ public Plugin myinfo = {
 public void OnPluginStart()
 {
 	gEV_Game = GetEngineVersion();
-	if(gEV_Game != Engine_CSS)
+	if (gEV_Game != Engine_CSS)
 	{
 		SetFailState("This plugin works only with Counter Strike: Source.");	
 	}
@@ -70,7 +70,7 @@ void BuildWRSJMenu(int client, char[] mapname)
 
 public int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
 {
-	if(action == MenuAction_Select)
+	if (action == MenuAction_Select)
 	{
 		// TODO: Open menu with the stats of selected time (stats are inside of the array, eg. strafes, sync, date and all the other shit.
 	}
@@ -152,7 +152,7 @@ void RetrieveWRSJ(int client, char[] mapname)
 	pack.WriteString(mapname);
 	Handle request;
 
-	if(!(request = SteamWorks_CreateHTTPRequest(k_EHTTPMethodGET, apiurl)) ||
+	if (!(request = SteamWorks_CreateHTTPRequest(k_EHTTPMethodGET, apiurl)) ||
 	    !SteamWorks_SetHTTPRequestHeaderValue(request, "apikey", apikey) ||
 	    !SteamWorks_SetHTTPRequestGetOrPostParameter(request, "mapname", mapname) ||
 	    !SteamWorks_SetHTTPRequestUserAgentInfo(request, USERAGENT(PLUGIN_VERSION_X)) ||
