@@ -1,34 +1,39 @@
+/* Header files */
 #include <sourcemod>
 #include <convar_class>
 #include <json> // https://github.com/clugg/sm-json
 #include <SteamWorks> // HTTP stuff
 #include <adt_trie> // StringMap
 
+/* Preprocessor directives */
 #pragma semicolon 1
 #pragma newdecls required
+
+/* Global defines */
+// Map of JSON objects with the mapname as the key.
+//--- Question: Wouldn't it be better and easier with an enum struct instead? ---//
+StringMap gS_Maps;
 
 #define STRINGIFY_XD(%1) "%1"
 #define PLUGIN_VERSION_X 1.0
 #define PLUGIN_VERSION STRINGIFY_XD(PLUGIN_VERSION_X)
-
 #define USERAGENT(%1) "wrsj-steamworks - version %1 (https://github.com/rtldg/wrsj)"
 
-public Plugin myinfo = {
-	name = "Sourcejump World Record",
-	author = "rtldg",
-	description = "Grabs WRs from Sourcejump's API",
-	version = "1.0",
-	url = "https://github.com/rtldg/wrsj"
-}
-
+/* Global CVARs */
 Convar gCV_SourceJumpAPIKey;
 Convar gCV_SourceJumpAPIUrl;
 Convar gCV_SourceJumpDelay;
 Convar gCV_SourceJumpCacheSize;
 Convar gCV_SourceJumpCacheTime;
 
-// Map of JSON objects with the mapname as the key.
-StringMap g_maps;
+/* Plugin information */
+public Plugin myinfo = {
+	name = "Sourcejump World Record",
+	author = "rtldg / Nairda",
+	description = "Grabs WRs from SourceJump's API",
+	version = "1.0",
+	url = "https://github.com/rtldg/wrsj"
+}
 
 public void OnPluginStart()
 {
@@ -41,14 +46,29 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_wrsj", Command_WRSJ, "View global world records from Sourcejump's API.");
 	RegConsoleCmd("sm_sjwr", Command_WRSJ, "View global world records from Sourcejump's API.");
 
-	g_maps = new StringMap();
+	gS_Maps = new StringMap();
 
 	AutoExecConfig();
 }
 
 void BuildWRSJMenu(int client, char[] mapname)
 {
-	// Steal shavit-wr menu stuff
+	Menu menu = new Menu(Handler_WRSJMenu, MENU_ACTIONS_ALL);
+	menu.SetTitle("SJWR: (Showing %i best):\nTime - Player", gCV_SourceJumpCacheSize.IntValue);
+
+	// TODO: I'm guessing some for loop. I suck with menus.
+
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
+{
+	if(action == MenuAction_Select)
+	{
+		// TODO: Open menu with the stats of selected time (stats are inside of the array, eg. strafes, sync, date and all the other shit.
+	}
+
+	return 0;
 }
 
 public void RequestCompletedCallback(Handle request, bool bFailure, bool bRequestSuccessful, EHTTPStatusCode eStatusCode, int userid, DataPack map_packed)
@@ -89,14 +109,14 @@ public void RequestCompletedCallback(Handle request, bool bFailure, bool bReques
 	}
 
 	JSON_Object cached_map;
-	if (g_maps.GetValue(mapname, cached_map))
+	if (gS_Maps.GetValue(mapname, cached_map))
 	{
 		CloseHandle(cached_map);
-		g_maps.SetValue(mapname, map);
+		gS_Maps.SetValue(mapname, map);
 		map.SetFloat("cached_time", GetEngineTime());
 	}
 
-	if (client != 0)
+	if (!IsValidClientIndex(client))
 		BuildWRSJMenu(client, mapname);
 }
 
@@ -129,8 +149,7 @@ void RetrieveWRSJ(int client, char[] mapname)
 	    !SteamWorks_SetHTTPCallbacks(request, RequestCompletedCallback) ||
 	    !SteamWorks_SetHTTPRequestContextValue(request, userid, pack) ||
 	    !SteamWorks_SendHTTPRequest(request)
-	)
-	{
+	){
 		CloseHandle(pack);
 		CloseHandle(request);
 		ReplyToCommand(client, "WRSJ: failed to setup & send HTTP request");
@@ -147,14 +166,16 @@ Action Command_WRSJ(int client, int args)
 		return Plugin_Handled;
 	}
 
-	if (client == 0 || IsFakeClient(client))// || !IsClientAuthorized(client))
+	if (!IsValidClientIndex(client))
+	{
 		return Plugin_Handled;
+	}
 
 	char mapname[160];
 	GetCmdArg(1, mapname, sizeof(mapname));
 
 	JSON_Object cached_map;
-	if (g_maps.GetValue(mapname, cached_map))
+	if (gS_Maps.GetValue(mapname, cached_map))
 	{
 		float cached_time;
 		cached_map.GetValue("cached_time", cached_time);
@@ -169,4 +190,10 @@ Action Command_WRSJ(int client, int args)
 
 	RetrieveWRSJ(client, mapname);
 	return Plugin_Handled;
+}
+
+// We don't want the -1 client id bug. Thank Volvo™ for this
+stock bool IsValidClientIndex(int client)
+{
+	return (0 < client <= MaxClients);
 }
