@@ -142,7 +142,7 @@ void RetrieveWRSJ(int client, char[] mapname)
 	pack.WriteString(mapname);
 	Handle request;
 
-	if	(!(request = SteamWorks_CreateHTTPRequest(k_EHTTPMethodGET, apiurl)) ||
+	if(!(request = SteamWorks_CreateHTTPRequest(k_EHTTPMethodGET, apiurl)) ||
 	    !SteamWorks_SetHTTPRequestHeaderValue(request, "apikey", apikey) ||
 	    !SteamWorks_SetHTTPRequestGetOrPostParameter(request, "mapname", mapname) ||
 	    !SteamWorks_SetHTTPRequestUserAgentInfo(request, USERAGENT(PLUGIN_VERSION_X)) ||
@@ -151,7 +151,7 @@ void RetrieveWRSJ(int client, char[] mapname)
 	    !SteamWorks_SetHTTPCallbacks(request, RequestCompletedCallback) ||
 	    !SteamWorks_SetHTTPRequestContextValue(request, userid, pack) ||
 	    !SteamWorks_SendHTTPRequest(request)
-		)
+	)
 	{
 		CloseHandle(pack);
 		CloseHandle(request);
