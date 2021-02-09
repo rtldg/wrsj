@@ -13,7 +13,7 @@
 // Map of JSON objects with the mapname as the key.
 //--- Question: Wouldn't it be better and easier with an enum struct instead? ---//
 StringMap gS_Maps;
-EngineVersion g_EVGame;
+EngineVersion gEV_Game;
 
 #define STRINGIFY_XD(%1) "%1"
 #define PLUGIN_VERSION_X 1.0
@@ -38,8 +38,8 @@ public Plugin myinfo = {
 
 public void OnPluginStart()
 {
-	g_EVGame = GetEngineVersion();
-	if(g_EVGame != Engine_CSS)
+	gEV_Game = GetEngineVersion();
+	if(gEV_Game != Engine_CSS)
 	{
 		SetFailState("This plugin works only with Counter Strike: Source.");	
 	}
