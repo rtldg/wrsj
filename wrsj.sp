@@ -62,7 +62,7 @@ public void OnPluginStart()
 void BuildWRSJMenu(int client, char[] mapname)
 {
 	Menu menu = new Menu(Handler_WRSJMenu, MENU_ACTIONS_ALL);
-	menu.SetTitle("SJWR: (Showing %i best):\nTime - Player", gCV_SourceJumpWRAmmount.IntValue);
+	menu.SetTitle("SJWR: (Showing %i best):\nTime - Player", gCV_SourceJumpWRCount.IntValue);
 
 	// TODO: I'm guessing some for loop. I suck with menus.
 
