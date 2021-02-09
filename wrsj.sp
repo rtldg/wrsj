@@ -83,7 +83,9 @@ public void RequestCompletedCallback(Handle request, bool bFailure, bool bReques
 	if (bFailure || !bRequestSuccessful || eStatusCode != k_EHTTPStatusCode200OK)
 	{
 		if (client != 0)
+		{
 			ReplyToCommand(client, "WRSJ: Sourcejump API request failed");
+		}
 
 		LogError("WRSJ: Sourcejump API request failed");
 		return;
@@ -135,6 +137,7 @@ void RetrieveWRSJ(int client, char[] mapname)
 	{
 		ReplyToCommand(client, "WRSJ: Sourcejump API key or URL is not set.");
 		LogError("WRSJ: Sourcejump API key or URL is not set.");
+
 		return;
 	}
 
@@ -157,6 +160,7 @@ void RetrieveWRSJ(int client, char[] mapname)
 		CloseHandle(request);
 		ReplyToCommand(client, "WRSJ: failed to setup & send HTTP request");
 		LogError("WRSJ: failed to setup & send HTTP request");
+
 		return;
 	}
 }
@@ -192,6 +196,7 @@ Action Command_WRSJ(int client, int args)
 	}
 
 	RetrieveWRSJ(client, mapname);
+
 	return Plugin_Handled;
 }
 
