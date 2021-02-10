@@ -15,7 +15,7 @@
 
 public Plugin myinfo = {
 	name = "Sourcejump World Record",
-	author = "rtldg",
+	author = "rtldg / Nairda",
 	description = "Grabs WRs from Sourcejump's API",
 	version = "1.0",
 	url = "https://github.com/rtldg/wrsj"
@@ -26,29 +26,85 @@ Convar gCV_SourceJumpAPIUrl;
 Convar gCV_SourceJumpDelay;
 Convar gCV_SourceJumpCacheSize;
 Convar gCV_SourceJumpCacheTime;
+Convar gCV_SourceJumpWRCount;
 
 // Map of JSON objects with the mapname as the key.
-StringMap g_maps;
+StringMap gS_Maps;
 
 public void OnPluginStart()
 {
 	gCV_SourceJumpAPIKey = new Convar("sj_api_key", "", "Replace with your unique api key.");
-	gCV_SourceJumpAPIUrl = new Convar("sj_api_url", "", "Can be changed for testing.");
+	gCV_SourceJumpAPIUrl = new Convar("sj_api_url", "https://sourcejump.net/api/records/", "Can be changed for testing.");
 	gCV_SourceJumpDelay = new Convar("sj_api_delay", "1.0", "Minimum delay between requests to Sourcejump API.", 0, true, 0.5);
 	gCV_SourceJumpCacheSize = new Convar("sj_api_cache_size", "12", "Number of maps to cache from Sourcejump API.");
 	gCV_SourceJumpCacheTime = new Convar("sj_api_cache_time", "666.0", "How many seconds to cache a map from Sourcejump API.", 0, true, 5.0);
+	gCV_SourceJumpWRCount = new Convar("sj_api_wr_count", "10", "How many top times should be shown in the !wrsj menu.");
 
 	RegConsoleCmd("sm_wrsj", Command_WRSJ, "View global world records from Sourcejump's API.");
 	RegConsoleCmd("sm_sjwr", Command_WRSJ, "View global world records from Sourcejump's API.");
 
-	g_maps = new StringMap();
+	gS_Maps = new StringMap();
 
 	AutoExecConfig();
 }
 
 void BuildWRSJMenu(int client, char[] mapname)
 {
-	// Steal shavit-wr menu stuff
+	int maxrecords = gCV_SourceJumpWRCount.IntValue;
+
+	JSON_Array wrs;
+	if (!gS_Maps.GetValue(mapname, wrs))
+	{
+		PrintToChat(client, "WRSJ: Somehow failed to retrieve map records for menu...");
+		LogError("WRSJ: Somehow failed to retrieve map records for menu...");
+		return;
+	}
+
+	int wrs_length = wrs.Length;
+	maxrecords = (maxrecords < wrs_length) ? maxrecords : wrs_length;
+
+	Menu menu = new Menu(Handler_WRSJMenu, MENU_ACTIONS_ALL);
+	menu.SetTitle("SJWR: (Showing %i best):\nTime - Player", maxrecords);
+
+	for (int i = 0; i < maxrecords; i++)
+	{
+		JSON_Object record;
+		char name[MAX_NAME_LENGTH];
+		char time[16];
+		int id;
+
+		if (!wrs.GetValue(i, record) ||
+		    !record.GetString("name", name, sizeof(name)) ||
+		    !record.GetString("time", time, sizeof(time)) ||
+		    !record.GetInt("id", id)
+		)
+		{
+			CloseHandle(menu);
+			PrintToChat(client, "WRSJ: asaaadfasdf");
+			LogError("WRSJ: asaaadfasdf");
+			return;
+		}
+
+		char line[128];
+		FormatEx(line, sizeof(line), "#%d - %s - %s", i+1, name, time);
+
+		char info[192];
+		FormatEx(info, sizeof(info), "%d;%s", id, mapname);
+		menu.AddItem(info, line);
+	}
+
+	menu.ExitButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
+{
+	if (action == MenuAction_Select)
+	{
+		// TODO: Open menu with the stats of selected time (stats are inside of the array, eg. strafes, sync, date and all the other shit.
+	}
+
+	return 0;
 }
 
 public void RequestCompletedCallback(Handle request, bool bFailure, bool bRequestSuccessful, EHTTPStatusCode eStatusCode, int userid, DataPack map_packed)
@@ -89,10 +145,10 @@ public void RequestCompletedCallback(Handle request, bool bFailure, bool bReques
 	}
 
 	JSON_Object cached_map;
-	if (g_maps.GetValue(mapname, cached_map))
+	if (gS_Maps.GetValue(mapname, cached_map))
 	{
 		CloseHandle(cached_map);
-		g_maps.SetValue(mapname, map);
+		gS_Maps.SetValue(mapname, map);
 		map.SetFloat("cached_time", GetEngineTime());
 	}
 
@@ -104,7 +160,7 @@ void RetrieveWRSJ(int client, char[] mapname)
 {
 	int userid = GetClientUserId(client);
 	char apikey[40];
-	char apiurl[169];
+	char apiurl[230];
 
 	gCV_SourceJumpAPIKey.GetString(apikey, sizeof(apikey));
 	gCV_SourceJumpAPIUrl.GetString(apiurl, sizeof(apiurl));
@@ -116,13 +172,14 @@ void RetrieveWRSJ(int client, char[] mapname)
 		return;
 	}
 
+	StrCat(apiurl, sizeof(apiurl), mapname);
+
 	DataPack pack = new DataPack();
 	pack.WriteString(mapname);
 	Handle request;
 
 	if (!(request = SteamWorks_CreateHTTPRequest(k_EHTTPMethodGET, apiurl)) ||
-	    !SteamWorks_SetHTTPRequestHeaderValue(request, "apikey", apikey) ||
-	    !SteamWorks_SetHTTPRequestGetOrPostParameter(request, "mapname", mapname) ||
+	    !SteamWorks_SetHTTPRequestGetOrPostParameter(request, "key", apikey) ||
 	    !SteamWorks_SetHTTPRequestUserAgentInfo(request, USERAGENT(PLUGIN_VERSION_X)) ||
 	    !SteamWorks_SetHTTPRequestAbsoluteTimeoutMS(request, 4000) ||
 	    !SteamWorks_SetHTTPRequestRequiresVerifiedCertificate(request, true) ||
@@ -154,7 +211,7 @@ Action Command_WRSJ(int client, int args)
 	GetCmdArg(1, mapname, sizeof(mapname));
 
 	JSON_Object cached_map;
-	if (g_maps.GetValue(mapname, cached_map))
+	if (gS_Maps.GetValue(mapname, cached_map))
 	{
 		float cached_time;
 		cached_map.GetValue("cached_time", cached_time);
