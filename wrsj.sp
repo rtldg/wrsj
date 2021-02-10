@@ -7,11 +7,8 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define STRINGIFY_XD(%1) "%1"
-#define PLUGIN_VERSION_X 1.0
-#define PLUGIN_VERSION STRINGIFY_XD(PLUGIN_VERSION_X)
-
-#define USERAGENT(%1) "wrsj-steamworks - version %1 (https://github.com/rtldg/wrsj)"
+#define PLUGIN_VERSION 1.0
+#define USERAGENT "wrsj 1.0 (https://github.com/rtldg/wrsj)"
 
 public Plugin myinfo = {
 	name = "Sourcejump World Record",
@@ -71,12 +68,10 @@ void BuildWRSJMenu(int client, char[] mapname)
 		JSON_Object record;
 		char name[MAX_NAME_LENGTH];
 		char time[16];
-		int id;
 
-		if (!wrs.GetValue(i, record) ||
-		    !record.GetString("name", name, sizeof(name)) ||
-		    !record.GetString("time", time, sizeof(time)) ||
-		    !record.GetInt("id", id)
+		if (!wrs.GetValue(i, record)
+		 || !record.GetString("name", name, sizeof(name))
+		 || !record.GetString("time", time, sizeof(time))
 		)
 		{
 			CloseHandle(menu);
@@ -85,8 +80,11 @@ void BuildWRSJMenu(int client, char[] mapname)
 			return;
 		}
 
+		int id = record.GetInt("id");
+		int jumps = record.GetInt("jumps");
+
 		char line[128];
-		FormatEx(line, sizeof(line), "#%d - %s - %s", i+1, name, time);
+		FormatEx(line, sizeof(line), "#%d - %s - %s (%d Jumps)", i+1, name, time, jumps);
 
 		char info[192];
 		FormatEx(info, sizeof(info), "%d;%s", id, mapname);
@@ -121,53 +119,54 @@ public int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice
 	return 0;
 }
 
-public void RequestCompletedCallback(Handle request, bool bFailure, bool bRequestSuccessful, EHTTPStatusCode eStatusCode, int userid, DataPack map_packed)
+public void ResponseBodyCallback(const char[] data, DataPack pack, int datalen)
 {
-	int client = GetClientOfUserId(userid);
+	pack.Reset();
+
 	char mapname[160];
+	int userid = pack.ReadCell();
+	int client = GetClientOfUserId(userid);
+	pack.ReadString(mapname, sizeof(mapname));
+	CloseHandle(pack);
 
-	map_packed.ReadString(mapname, sizeof(mapname));
-	CloseHandle(map_packed);
-
-	// TODO: Get API documentation so we can see if status code should be 200 even when no results.
-	if (bFailure || !bRequestSuccessful || eStatusCode != k_EHTTPStatusCode200OK)
-	{
-		if (client != 0)
-			ReplyToCommand(client, "WRSJ: Sourcejump API request failed");
-
-		LogError("WRSJ: Sourcejump API request failed");
-		return;
-	}
-
-	// Cache results now...
-	int size;
-	if (!SteamWorks_GetHTTPResponseBodySize(request, size))
-	{
-		return;
-	}
-
-	char[] buf = new char[size+1];
-	if (!SteamWorks_GetHTTPResponseBodyData(request, buf, size+1))
-	{
-		return;
-	}
-
-	JSON_Object map = json_decode(buf);
+	JSON_Object map = json_decode(data);
 	if (map == null)
 	{
+		if (client != 0)
+			ReplyToCommand(client, "WRSJ: bbb");
+		LogError("WRSJ: bbb");
 		return;
 	}
 
 	JSON_Object cached_map;
-	if (gS_Maps.GetValue(mapname, cached_map))
+	if (!gS_Maps.GetValue(mapname, cached_map))
 	{
 		CloseHandle(cached_map);
-		gS_Maps.SetValue(mapname, map);
 		map.SetFloat("cached_time", GetEngineTime());
+		gS_Maps.SetValue(mapname, map);
 	}
 
 	if (client != 0)
 		BuildWRSJMenu(client, mapname);
+}
+
+public void RequestCompletedCallback(Handle request, bool bFailure, bool bRequestSuccessful, EHTTPStatusCode eStatusCode, DataPack pack)
+{
+	pack.Reset();
+	int userid = pack.ReadCell();
+	int client = GetClientOfUserId(userid);
+
+	ReplyToCommand(client, "bFailure = %d, bRequestSuccessful = %d, eStatusCode = %d", bFailure, bRequestSuccessful, eStatusCode);
+
+	if (bFailure || !bRequestSuccessful || eStatusCode != k_EHTTPStatusCode200OK)
+	{
+		if (client != 0)
+			ReplyToCommand(client, "WRSJ: Sourcejump API request failed");
+		LogError("WRSJ: Sourcejump API request failed");
+		return;
+	}
+
+	SteamWorks_GetHTTPResponseBodyCallback(request, ResponseBodyCallback, pack);
 }
 
 void RetrieveWRSJ(int client, char[] mapname)
@@ -189,16 +188,20 @@ void RetrieveWRSJ(int client, char[] mapname)
 	StrCat(apiurl, sizeof(apiurl), mapname);
 
 	DataPack pack = new DataPack();
+	pack.WriteCell(userid);
 	pack.WriteString(mapname);
 	Handle request;
 
+	ReplyToCommand(client, "url = %s, key = %s", apiurl, apikey);
+	//if (true) return;
 	if (!(request = SteamWorks_CreateHTTPRequest(k_EHTTPMethodGET, apiurl)) ||
 	    !SteamWorks_SetHTTPRequestHeaderValue(request, "api-key", apikey) ||
-	    !SteamWorks_SetHTTPRequestUserAgentInfo(request, USERAGENT(PLUGIN_VERSION_X)) ||
+	    !SteamWorks_SetHTTPRequestHeaderValue(request, "accept", "application/json") ||
+	    !SteamWorks_SetHTTPRequestContextValue(request, pack) ||
+	    !SteamWorks_SetHTTPRequestUserAgentInfo(request, USERAGENT) ||
 	    !SteamWorks_SetHTTPRequestAbsoluteTimeoutMS(request, 4000) ||
-	    !SteamWorks_SetHTTPRequestRequiresVerifiedCertificate(request, true) ||
+	//    !SteamWorks_SetHTTPRequestRequiresVerifiedCertificate(request, true) ||
 	    !SteamWorks_SetHTTPCallbacks(request, RequestCompletedCallback) ||
-	    !SteamWorks_SetHTTPRequestContextValue(request, userid, pack) ||
 	    !SteamWorks_SendHTTPRequest(request)
 	)
 	{
