@@ -64,7 +64,7 @@ void BuildWRSJMenu(int client, char[] mapname)
 	maxrecords = (maxrecords < wrs_length) ? maxrecords : wrs_length;
 
 	Menu menu = new Menu(Handler_WRSJMenu, MENU_ACTIONS_ALL);
-	menu.SetTitle("SJWR: (Showing %i best):\nTime - Player", maxrecords);
+	menu.SetTitle("WRSJ: (Showing %i best):", maxrecords);
 
 	for (int i = 0; i < maxrecords; i++)
 	{
@@ -93,6 +93,14 @@ void BuildWRSJMenu(int client, char[] mapname)
 		menu.AddItem(info, line);
 	}
 
+	if(menu.ItemCount == 0)
+	{
+		char sMenuItem[64];
+		//FormatEx(sMenuItem, 64, "%T", "WRMapNoRecords", client);
+		FormatEx(sMenuItem, 64, "No records");
+		menu.AddItem("-1", sMenuItem);
+	}
+
 	menu.ExitButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
 }
@@ -102,6 +110,12 @@ public int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice
 	if (action == MenuAction_Select)
 	{
 		// TODO: Open menu with the stats of selected time (stats are inside of the array, eg. strafes, sync, date and all the other shit.
+		char display[192];
+		//FormatEx
+	}
+	else if (action == MenuAction_End)
+	{
+		delete menu;
 	}
 
 	return 0;
@@ -179,7 +193,7 @@ void RetrieveWRSJ(int client, char[] mapname)
 	Handle request;
 
 	if (!(request = SteamWorks_CreateHTTPRequest(k_EHTTPMethodGET, apiurl)) ||
-	    !SteamWorks_SetHTTPRequestGetOrPostParameter(request, "key", apikey) ||
+	    !SteamWorks_SetHTTPRequestHeaderValue(request, "api-key", apikey) ||
 	    !SteamWorks_SetHTTPRequestUserAgentInfo(request, USERAGENT(PLUGIN_VERSION_X)) ||
 	    !SteamWorks_SetHTTPRequestAbsoluteTimeoutMS(request, 4000) ||
 	    !SteamWorks_SetHTTPRequestRequiresVerifiedCertificate(request, true) ||
