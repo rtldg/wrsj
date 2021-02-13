@@ -1,14 +1,22 @@
 #include <sourcemod>
 #include <convar_class>
+#include <adt_trie> // StringMap
+
+
+#define USE_RIPEXT 1
+#if USE_RIPEXT
+#include <ripext>
+#include <adt_trie> // StringMap
+#else
 #include <json> // https://github.com/clugg/sm-json
 #include <SteamWorks> // HTTP stuff
-#include <adt_trie> // StringMap
+#endif
 
 #pragma semicolon 1
 #pragma newdecls required
 
 #define PLUGIN_VERSION 1.0
-#define USERAGENT "wrsj 1.0 (https://github.com/rtldg/wrsj)"
+#define USERAGENT "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36 wrsj/1.0 (https://github.com/rtldg/wrsj)"
 
 public Plugin myinfo = {
 	name = "Sourcejump World Record",
@@ -25,7 +33,26 @@ Convar gCV_SourceJumpCacheSize;
 Convar gCV_SourceJumpCacheTime;
 Convar gCV_SourceJumpWRCount;
 
-// Map of JSON objects with the mapname as the key.
+enum struct RecordInfo {
+	int id;
+	char name[MAX_NAME_LENGTH];
+	//char country[];
+	//char mapname[90]; // longest map name I've seen is bhop_pneumonoultramicroscopicsilicovolcanoconiosis_v3_001.bsp
+	char hostname[111];
+	char time[13];
+	//char wrDif[13];
+	char steamid[20];
+	//int tier;
+	char date[11]; // eventually increase...
+	float sync;
+	int strafes;
+	int jumps;
+
+	//int Area() {
+	//	return this.width * this.height;
+	//}
+}
+
 StringMap gS_Maps;
 
 public void OnPluginStart()
@@ -47,47 +74,25 @@ public void OnPluginStart()
 
 void BuildWRSJMenu(int client, char[] mapname)
 {
+	ArrayList records;
+	gS_Maps.GetValue(mapname, records);
+
 	int maxrecords = gCV_SourceJumpWRCount.IntValue;
-
-	JSON_Array wrs;
-	if (!gS_Maps.GetValue(mapname, wrs))
-	{
-		PrintToChat(client, "WRSJ: Somehow failed to retrieve map records for menu...");
-		LogError("WRSJ: Somehow failed to retrieve map records for menu...");
-		return;
-	}
-
-	int wrs_length = wrs.Length;
-	maxrecords = (maxrecords < wrs_length) ? maxrecords : wrs_length;
+	maxrecords = (maxrecords < records.Length) ? maxrecords : records.Length;
 
 	Menu menu = new Menu(Handler_WRSJMenu, MENU_ACTIONS_ALL);
 	menu.SetTitle("WRSJ: (Showing %i best):", maxrecords);
 
 	for (int i = 0; i < maxrecords; i++)
 	{
-		JSON_Object record;
-		char name[MAX_NAME_LENGTH];
-		char time[16];
-
-		if (!wrs.GetValue(i, record)
-		 || !record.GetString("name", name, sizeof(name))
-		 || !record.GetString("time", time, sizeof(time))
-		)
-		{
-			CloseHandle(menu);
-			PrintToChat(client, "WRSJ: asaaadfasdf");
-			LogError("WRSJ: asaaadfasdf");
-			return;
-		}
-
-		int id = record.GetInt("id");
-		int jumps = record.GetInt("jumps");
+		RecordInfo record;
+		records.GetArray(i, record, sizeof(record));
 
 		char line[128];
-		FormatEx(line, sizeof(line), "#%d - %s - %s (%d Jumps)", i+1, name, time, jumps);
+		FormatEx(line, sizeof(line), "#%d - %s - %s (%d Jumps)", i+1, record.name, record.time, record.jumps);
 
 		char info[192];
-		FormatEx(info, sizeof(info), "%d;%s", id, mapname);
+		FormatEx(info, sizeof(info), "%d;%s", record.id, mapname);
 		menu.AddItem(info, line);
 	}
 
@@ -103,13 +108,65 @@ void BuildWRSJMenu(int client, char[] mapname)
 	menu.Display(client, MENU_TIME_FOREVER);
 }
 
-public int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
+int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
 {
 	if (action == MenuAction_Select)
 	{
-		// TODO: Open menu with the stats of selected time (stats are inside of the array, eg. strafes, sync, date and all the other shit.
-		char display[192];
-		//FormatEx
+		int id;
+		char mapname[128];
+		char info[128];
+		menu.GetItem(choice, info, 128);
+
+		if (StringToInt(info) == -1)
+		{
+			delete menu;
+		}
+
+		{
+			char exploded[2][128];
+			ExplodeString(info, ";", exploded, 2, 128, true);
+
+			id = StringToInt(exploded[0]);
+			mapname = exploded[1];
+		}
+
+		RecordInfo record;
+		ArrayList records;
+		gS_Maps.GetValue(mapname, records);
+
+		for (int i = 0; i < records.Length; i++)
+		{
+			records.GetArray(i, record, sizeof(record));
+			if (record.id == id)
+				break;
+		}
+
+		if (record.id != id)
+			return 0;
+
+		Menu NEWMENU = new Menu(SubMenu_Handler);
+
+		char display[160];
+
+		FormatEx(display, sizeof(display), "%s %s", record.name, record.steamid);
+		NEWMENU.SetTitle(display);
+
+		FormatEx(display, sizeof(display), "Time: %s", record.time);
+		NEWMENU.AddItem("-1", display);
+		FormatEx(display, sizeof(display), "Jumps: %d", record.jumps);
+		NEWMENU.AddItem("-1", display);
+		FormatEx(display, sizeof(display), "Strafes: %d (%.2f)", record.strafes, record.sync);
+		NEWMENU.AddItem("-1", display);
+		FormatEx(display, sizeof(display), "Server: %s", record.hostname);
+		NEWMENU.AddItem("-1", display);
+
+		NEWMENU.ExitButton = true;
+		NEWMENU.Display(client, MENU_TIME_FOREVER);
+	}
+	else if (action == MenuAction_Cancel && choice == MenuCancel_ExitBack)
+	{
+		// ?
+		delete menu;
 	}
 	else if (action == MenuAction_End)
 	{
@@ -119,37 +176,105 @@ public int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice
 	return 0;
 }
 
-public void ResponseBodyCallback(const char[] data, DataPack pack, int datalen)
+int SubMenu_Handler(Menu menu, MenuAction action, int client, int choice)
+{
+	delete menu;
+	return 0;
+}
+
+#if USE_RIPEXT
+void CacheMap(char[] mapname, JSONArray json)
+#else
+void CacheMap(char[] mapname, JSON_Array json)
+#endif
+{
+	ArrayList records;
+
+	if (gS_Maps.GetValue(mapname, records))
+	{
+		// TODO: if date too soon... don't cache and return early
+		records.Clear();
+	}
+	else
+	{
+		records = new ArrayList(sizeof(RecordInfo));
+	}
+
+	//cache.time_cached = GetEngineTime();
+	gS_Maps.SetValue(mapname, records, true);
+
+	for (int i = 0; i < json.Length; i++)
+	{
+#if USE_RIPEXT
+		JSONObject record = view_as<JSONObject>(json.Get(i));
+#else
+		JSON_Object record = json.GetObject(i);
+#endif
+
+		RecordInfo info;
+		info.id = record.GetInt("id");
+		record.GetString("name", info.name, sizeof(info.name));
+		record.GetString("hostname", info.hostname, sizeof(info.hostname));
+		record.GetString("time", info.time, sizeof(info.time));
+		record.GetString("steamid", info.steamid, sizeof(info.steamid));
+		record.GetString("date", info.date, sizeof(info.date));
+		info.sync = record.GetFloat("sync");
+		info.strafes = record.GetInt("strafes");
+		info.jumps = record.GetInt("jumps");
+
+		records.PushArray(info, sizeof(info));
+
+#if USE_RIPEXT
+		delete record;
+#else
+		// ???
+#endif
+	}
+}
+
+#if USE_RIPEXT
+void RequestCallback(HTTPResponse response, DataPack pack, const char[] error)
+#else
+void ResponseBodyCallback(const char[] data, DataPack pack, int datalen)
+#endif
 {
 	pack.Reset();
 
-	char mapname[160];
 	int userid = pack.ReadCell();
 	int client = GetClientOfUserId(userid);
+	char mapname[160];
 	pack.ReadString(mapname, sizeof(mapname));
+
 	CloseHandle(pack);
 
-	JSON_Object map = json_decode(data);
-	if (map == null)
+#if USE_RIPEXT
+	PrintToChat(client, "status = %d, error = '%s'", response.Status, error);
+	if (response.Status != HTTPStatus_OK)
+	{
+		if (client != 0)
+			PrintToChat(client, "WRSJ: Sourcejump API request failed");
+		LogError("WRSJ: Sourcejump API request failed");
+		return;
+	}
+
+	JSONArray records = view_as<JSONArray>(response.Data);
+#else
+	JSON_Array records = view_as<JSON_Array>(json_decode(data));
+	if (records == null)
 	{
 		if (client != 0)
 			ReplyToCommand(client, "WRSJ: bbb");
 		LogError("WRSJ: bbb");
 		return;
 	}
+#endif
 
-	JSON_Object cached_map;
-	if (!gS_Maps.GetValue(mapname, cached_map))
-	{
-		CloseHandle(cached_map);
-		map.SetFloat("cached_time", GetEngineTime());
-		gS_Maps.SetValue(mapname, map);
-	}
-
+	CacheMap(mapname, records);
 	if (client != 0)
 		BuildWRSJMenu(client, mapname);
 }
 
+#if !USE_RIPEXT
 public void RequestCompletedCallback(Handle request, bool bFailure, bool bRequestSuccessful, EHTTPStatusCode eStatusCode, DataPack pack)
 {
 	pack.Reset();
@@ -168,6 +293,7 @@ public void RequestCompletedCallback(Handle request, bool bFailure, bool bReques
 
 	SteamWorks_GetHTTPResponseBodyCallback(request, ResponseBodyCallback, pack);
 }
+#endif
 
 void RetrieveWRSJ(int client, char[] mapname)
 {
@@ -185,20 +311,25 @@ void RetrieveWRSJ(int client, char[] mapname)
 		return;
 	}
 
-	StrCat(apiurl, sizeof(apiurl), mapname);
-
 	DataPack pack = new DataPack();
 	pack.WriteCell(userid);
 	pack.WriteString(mapname);
-	Handle request;
 
-	ReplyToCommand(client, "url = %s, key = %s", apiurl, apikey);
-	//if (true) return;
+	StrCat(apiurl, sizeof(apiurl), mapname);
+	ReplyToCommand(client, "url = %s", apiurl);
+
+#if USE_RIPEXT
+	HTTPClient http = new HTTPClient(apiurl);
+	http.SetHeader("api-key", apikey);
+	//http.SetHeader("user-agent", USERAGENT); // doesn't work :(
+	http.Get("", RequestCallback, pack);
+#else
+	Handle request;
 	if (!(request = SteamWorks_CreateHTTPRequest(k_EHTTPMethodGET, apiurl)) ||
 	    !SteamWorks_SetHTTPRequestHeaderValue(request, "api-key", apikey) ||
 	    !SteamWorks_SetHTTPRequestHeaderValue(request, "accept", "application/json") ||
+	    !SteamWorks_SetHTTPRequestHeaderValue(request, "user-agent", USERAGENT) ||
 	    !SteamWorks_SetHTTPRequestContextValue(request, pack) ||
-	    !SteamWorks_SetHTTPRequestUserAgentInfo(request, USERAGENT) ||
 	    !SteamWorks_SetHTTPRequestAbsoluteTimeoutMS(request, 4000) ||
 	//    !SteamWorks_SetHTTPRequestRequiresVerifiedCertificate(request, true) ||
 	    !SteamWorks_SetHTTPCallbacks(request, RequestCompletedCallback) ||
@@ -211,6 +342,7 @@ void RetrieveWRSJ(int client, char[] mapname)
 		LogError("WRSJ: failed to setup & send HTTP request");
 		return;
 	}
+#endif
 }
 
 Action Command_WRSJ(int client, int args)
@@ -227,6 +359,7 @@ Action Command_WRSJ(int client, int args)
 	char mapname[160];
 	GetCmdArg(1, mapname, sizeof(mapname));
 
+	/*
 	JSON_Object cached_map;
 	if (gS_Maps.GetValue(mapname, cached_map))
 	{
@@ -240,6 +373,7 @@ Action Command_WRSJ(int client, int args)
 			return Plugin_Handled;
 		}
 	}
+	*/
 
 	RetrieveWRSJ(client, mapname);
 	return Plugin_Handled;
