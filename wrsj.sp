@@ -5,7 +5,6 @@
 #define USE_RIPEXT 1
 #if USE_RIPEXT
 #include <ripext> // https://github.com/ErikMinekus/sm-ripext
-#include <adt_trie> // StringMap
 #else
 #include <json> // https://github.com/clugg/sm-json
 #include <SteamWorks> // HTTP stuff
