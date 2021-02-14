@@ -2,10 +2,9 @@
 #include <convar_class>
 #include <adt_trie> // StringMap
 
-
 #define USE_RIPEXT 1
 #if USE_RIPEXT
-#include <ripext>
+#include <ripext> // https://github.com/ErikMinekus/sm-ripext
 #include <adt_trie> // StringMap
 #else
 #include <json> // https://github.com/clugg/sm-json
@@ -43,17 +42,14 @@ enum struct RecordInfo {
 	//char wrDif[13];
 	char steamid[20];
 	//int tier;
-	char date[11]; // eventually increase...
+	char date[11]; // eventually increase?
 	float sync;
 	int strafes;
 	int jumps;
-
-	//int Area() {
-	//	return this.width * this.height;
-	//}
 }
 
 StringMap gS_Maps;
+StringMap gS_MapsCachedTime;
 
 public void OnPluginStart()
 {
@@ -68,6 +64,7 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_sjwr", Command_WRSJ, "View global world records from Sourcejump's API.");
 
 	gS_Maps = new StringMap();
+	gS_MapsCachedTime = new StringMap();
 
 	AutoExecConfig();
 }
@@ -120,6 +117,7 @@ int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
 		if (StringToInt(info) == -1)
 		{
 			delete menu;
+			return 0;
 		}
 
 		{
@@ -142,7 +140,10 @@ int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
 		}
 
 		if (record.id != id)
+		{
+			delete menu;
 			return 0;
+		}
 
 		Menu NEWMENU = new Menu(SubMenu_Handler);
 
@@ -178,7 +179,6 @@ int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
 
 int SubMenu_Handler(Menu menu, MenuAction action, int client, int choice)
 {
-	delete menu;
 	return 0;
 }
 
@@ -191,16 +191,11 @@ void CacheMap(char[] mapname, JSON_Array json)
 	ArrayList records;
 
 	if (gS_Maps.GetValue(mapname, records))
-	{
-		// TODO: if date too soon... don't cache and return early
 		records.Clear();
-	}
 	else
-	{
 		records = new ArrayList(sizeof(RecordInfo));
-	}
 
-	//cache.time_cached = GetEngineTime();
+	gS_MapsCachedTime.SetValue(mapname, GetEngineTime(), true);
 	gS_Maps.SetValue(mapname, records, true);
 
 	for (int i = 0; i < json.Length; i++)
@@ -248,7 +243,7 @@ void ResponseBodyCallback(const char[] data, DataPack pack, int datalen)
 	CloseHandle(pack);
 
 #if USE_RIPEXT
-	PrintToChat(client, "status = %d, error = '%s'", response.Status, error);
+	//PrintToChat(client, "status = %d, error = '%s'", response.Status, error);
 	if (response.Status != HTTPStatus_OK)
 	{
 		if (client != 0)
@@ -316,7 +311,7 @@ void RetrieveWRSJ(int client, char[] mapname)
 	pack.WriteString(mapname);
 
 	StrCat(apiurl, sizeof(apiurl), mapname);
-	ReplyToCommand(client, "url = %s", apiurl);
+	//ReplyToCommand(client, "url = %s", apiurl);
 
 #if USE_RIPEXT
 	HTTPClient http = new HTTPClient(apiurl);
@@ -359,21 +354,15 @@ Action Command_WRSJ(int client, int args)
 	char mapname[160];
 	GetCmdArg(1, mapname, sizeof(mapname));
 
-	/*
-	JSON_Object cached_map;
-	if (gS_Maps.GetValue(mapname, cached_map))
+	float cached_time;
+	if (gS_MapsCachedTime.GetValue(mapname, cached_time))
 	{
-		float cached_time;
-		cached_map.GetValue("cached_time", cached_time);
-
-		// TODO: Double check the cache check isn't fucked.
 		if (cached_time > (GetEngineTime() - gCV_SourceJumpCacheTime.FloatValue))
 		{
 			BuildWRSJMenu(client, mapname);
 			return Plugin_Handled;
 		}
 	}
-	*/
 
 	RetrieveWRSJ(client, mapname);
 	return Plugin_Handled;
