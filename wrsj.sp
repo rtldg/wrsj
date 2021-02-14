@@ -78,7 +78,7 @@ void BuildWRSJMenu(int client, char[] mapname)
 	maxrecords = (maxrecords < records.Length) ? maxrecords : records.Length;
 
 	Menu menu = new Menu(Handler_WRSJMenu, MENU_ACTIONS_ALL);
-	menu.SetTitle("WRSJ: (Showing %i best):", maxrecords);
+	menu.SetTitle("WRSJ - %s - Showing %i best", mapname, maxrecords);
 
 	for (int i = 0; i < maxrecords; i++)
 	{
