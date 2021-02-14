@@ -156,7 +156,7 @@ int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
 		NEWMENU.AddItem("-1", display);
 		FormatEx(display, sizeof(display), "Jumps: %d", record.jumps);
 		NEWMENU.AddItem("-1", display);
-		FormatEx(display, sizeof(display), "Strafes: %d (%.2f)", record.strafes, record.sync);
+		FormatEx(display, sizeof(display), "Strafes: %d (%.2f%%)", record.strafes, record.sync);
 		NEWMENU.AddItem("-1", display);
 		FormatEx(display, sizeof(display), "Server: %s", record.hostname);
 		NEWMENU.AddItem("-1", display);
