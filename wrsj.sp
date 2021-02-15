@@ -38,7 +38,7 @@ enum struct RecordInfo {
 	//char mapname[90]; // longest map name I've seen is bhop_pneumonoultramicroscopicsilicovolcanoconiosis_v3_001.bsp
 	char hostname[111];
 	char time[13];
-	//char wrDif[13];
+	char wrDif[13];
 	char steamid[20];
 	//int tier;
 	char date[11]; // eventually increase?
@@ -153,7 +153,7 @@ int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
 		FormatEx(display, sizeof(display), "%s %s", record.name, record.steamid);
 		submenu.SetTitle(display);
 
-		FormatEx(display, sizeof(display), "Time: %s", record.time);
+		FormatEx(display, sizeof(display), "Time: %s (%s)", record.time, record.wrDif);
 		submenu.AddItem("-1", display);
 		FormatEx(display, sizeof(display), "Jumps: %d", record.jumps);
 		submenu.AddItem("-1", display);
@@ -215,6 +215,7 @@ void CacheMap(char[] mapname, JSON_Array json)
 		record.GetString("time", info.time, sizeof(info.time));
 		record.GetString("steamid", info.steamid, sizeof(info.steamid));
 		record.GetString("date", info.date, sizeof(info.date));
+		record.GetString("wrDif", info.wrDif, sizeof(info.wrDif));
 		info.sync = record.GetFloat("sync");
 		info.strafes = record.GetInt("strafes");
 		info.jumps = record.GetInt("jumps");
