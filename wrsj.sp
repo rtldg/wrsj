@@ -5,6 +5,7 @@
 #define USE_RIPEXT 1
 #if USE_RIPEXT
 #include <ripext> // https://github.com/ErikMinekus/sm-ripext
+#include <adt_trie> // StringMap
 #else
 #include <json> // https://github.com/clugg/sm-json
 #include <SteamWorks> // HTTP stuff
@@ -50,6 +51,8 @@ enum struct RecordInfo {
 StringMap gS_Maps;
 StringMap gS_MapsCachedTime;
 
+char gS_MapName[MAXPLAYERS + 1][128];
+
 public void OnPluginStart()
 {
 	gCV_SourceJumpAPIKey = new Convar("sj_api_key", "", "Replace with your unique api key.");
@@ -77,7 +80,7 @@ void BuildWRSJMenu(int client, char[] mapname)
 	maxrecords = (maxrecords < records.Length) ? maxrecords : records.Length;
 
 	Menu menu = new Menu(Handler_WRSJMenu, MENU_ACTIONS_ALL);
-	menu.SetTitle("WRSJ - %s - Showing %i best", mapname, maxrecords);
+	menu.SetTitle("SourceJump WR\n%s - Showing %i best", mapname, maxrecords);
 
 	for (int i = 0; i < maxrecords; i++)
 	{
@@ -95,7 +98,7 @@ void BuildWRSJMenu(int client, char[] mapname)
 	if(menu.ItemCount == 0)
 	{
 		char sMenuItem[64];
-		//FormatEx(sMenuItem, 64, "%T", "WRMapNoRecords", client);
+
 		FormatEx(sMenuItem, 64, "No records");
 		menu.AddItem("-1", sMenuItem);
 	}
@@ -119,13 +122,13 @@ int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
 			return 0;
 		}
 
-		{
-			char exploded[2][128];
-			ExplodeString(info, ";", exploded, 2, 128, true);
+		char exploded[2][128];
+		ExplodeString(info, ";", exploded, 2, 128, true);
 
-			id = StringToInt(exploded[0]);
-			mapname = exploded[1];
-		}
+		id = StringToInt(exploded[0]);
+		mapname = exploded[1];
+		gS_MapName[client] = mapname;
+
 
 		RecordInfo record;
 		ArrayList records;
@@ -144,30 +147,27 @@ int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
 			return 0;
 		}
 
-		Menu NEWMENU = new Menu(SubMenu_Handler);
+		Menu submenu = new Menu(SubMenu_Handler);
 
 		char display[160];
 
 		FormatEx(display, sizeof(display), "%s %s", record.name, record.steamid);
-		NEWMENU.SetTitle(display);
+		submenu.SetTitle(display);
 
 		FormatEx(display, sizeof(display), "Time: %s", record.time);
-		NEWMENU.AddItem("-1", display);
+		submenu.AddItem("-1", display);
 		FormatEx(display, sizeof(display), "Jumps: %d", record.jumps);
-		NEWMENU.AddItem("-1", display);
+		submenu.AddItem("-1", display);
 		FormatEx(display, sizeof(display), "Strafes: %d (%.2f%%)", record.strafes, record.sync);
-		NEWMENU.AddItem("-1", display);
+		submenu.AddItem("-1", display);
 		FormatEx(display, sizeof(display), "Server: %s", record.hostname);
-		NEWMENU.AddItem("-1", display);
+		submenu.AddItem("-1", display);
 
-		NEWMENU.ExitButton = true;
-		NEWMENU.Display(client, MENU_TIME_FOREVER);
+		submenu.ExitBackButton = true;
+		submenu.ExitButton = true;
+		submenu.Display(client, MENU_TIME_FOREVER);
 	}
-	else if (action == MenuAction_Cancel && choice == MenuCancel_ExitBack)
-	{
-		// ?
-		delete menu;
-	}
+
 	else if (action == MenuAction_End)
 	{
 		delete menu;
@@ -178,7 +178,11 @@ int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
 
 int SubMenu_Handler(Menu menu, MenuAction action, int client, int choice)
 {
-	return 0;
+	if (action == MenuAction_Cancel && choice == MenuCancel_ExitBack)
+	{
+		BuildWRSJMenu(client, gS_MapName[client]);
+		delete menu;
+	}
 }
 
 #if USE_RIPEXT
