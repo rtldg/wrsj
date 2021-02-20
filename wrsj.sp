@@ -13,12 +13,11 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION 1.0
 #define USERAGENT "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36 wrsj/1.0 (https://github.com/rtldg/wrsj)"
 
 public Plugin myinfo = {
 	name = "Sourcejump World Record",
-	author = "rtldg / Nairda",
+	author = "rtldg & Nairda",
 	description = "Grabs WRs from Sourcejump's API",
 	version = "1.0",
 	url = "https://github.com/rtldg/wrsj"
