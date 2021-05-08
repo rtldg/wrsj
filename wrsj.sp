@@ -237,8 +237,7 @@ void ResponseBodyCallback(const char[] data, DataPack pack, int datalen)
 {
 	pack.Reset();
 
-	int userid = pack.ReadCell();
-	int client = GetClientOfUserId(userid);
+	int client = GetClientFromSerial(pack.ReadCell());
 	char mapname[160];
 	pack.ReadString(mapname, sizeof(mapname));
 
@@ -275,8 +274,7 @@ void ResponseBodyCallback(const char[] data, DataPack pack, int datalen)
 public void RequestCompletedCallback(Handle request, bool bFailure, bool bRequestSuccessful, EHTTPStatusCode eStatusCode, DataPack pack)
 {
 	pack.Reset();
-	int userid = pack.ReadCell();
-	int client = GetClientOfUserId(userid);
+	int client = GetClientFromSerial(pack.ReadCell());
 
 	ReplyToCommand(client, "bFailure = %d, bRequestSuccessful = %d, eStatusCode = %d", bFailure, bRequestSuccessful, eStatusCode);
 
@@ -294,7 +292,7 @@ public void RequestCompletedCallback(Handle request, bool bFailure, bool bReques
 
 void RetrieveWRSJ(int client, char[] mapname)
 {
-	int userid = GetClientUserId(client);
+	int serial = GetClientSerial(client);
 	char apikey[40];
 	char apiurl[230];
 
@@ -309,7 +307,7 @@ void RetrieveWRSJ(int client, char[] mapname)
 	}
 
 	DataPack pack = new DataPack();
-	pack.WriteCell(userid);
+	pack.WriteCell(serial);
 	pack.WriteString(mapname);
 
 	StrCat(apiurl, sizeof(apiurl), mapname);
