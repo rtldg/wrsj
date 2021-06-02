@@ -320,15 +320,15 @@ void RetrieveWRSJ(int client, char[] mapname)
 	http.Get("", RequestCallback, pack);
 #else
 	Handle request;
-	if (!(request = SteamWorks_CreateHTTPRequest(k_EHTTPMethodGET, apiurl)) ||
-	    !SteamWorks_SetHTTPRequestHeaderValue(request, "api-key", apikey) ||
-	    !SteamWorks_SetHTTPRequestHeaderValue(request, "accept", "application/json") ||
-	    !SteamWorks_SetHTTPRequestHeaderValue(request, "user-agent", USERAGENT) ||
-	    !SteamWorks_SetHTTPRequestContextValue(request, pack) ||
-	    !SteamWorks_SetHTTPRequestAbsoluteTimeoutMS(request, 4000) ||
-	//    !SteamWorks_SetHTTPRequestRequiresVerifiedCertificate(request, true) ||
-	    !SteamWorks_SetHTTPCallbacks(request, RequestCompletedCallback) ||
-	    !SteamWorks_SendHTTPRequest(request)
+	if (!(request = SteamWorks_CreateHTTPRequest(k_EHTTPMethodGET, apiurl))
+	  || !SteamWorks_SetHTTPRequestHeaderValue(request, "api-key", apikey)
+	  || !SteamWorks_SetHTTPRequestHeaderValue(request, "accept", "application/json")
+	//|| !SteamWorks_SetHTTPRequestHeaderValue(request, "user-agent", USERAGENT)
+	  || !SteamWorks_SetHTTPRequestContextValue(request, pack)
+	  || !SteamWorks_SetHTTPRequestAbsoluteTimeoutMS(request, 4000)
+	//|| !SteamWorks_SetHTTPRequestRequiresVerifiedCertificate(request, true)
+	  || !SteamWorks_SetHTTPCallbacks(request, RequestCompletedCallback)
+	  || !SteamWorks_SendHTTPRequest(request)
 	)
 	{
 		CloseHandle(pack);
