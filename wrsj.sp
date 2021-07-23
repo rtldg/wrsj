@@ -19,7 +19,7 @@ public Plugin myinfo = {
 	name = "Sourcejump World Record",
 	author = "rtldg & Nairda",
 	description = "Grabs WRs from Sourcejump's API",
-	version = "1.0",
+	version = "1.1",
 	url = "https://github.com/rtldg/wrsj"
 }
 
@@ -105,7 +105,7 @@ public Action Shavit_OnTopLeftHUD(int client, int target, char[] topleft, int to
 	RecordInfo info;
 	records.GetArray(0, info);
 
-	Format(topleft, topleftlength, "SJ: %s\n%s", info.time, topleft);
+	Format(topleft, topleftlength, "SJ: %s (%s)\n%s", info.time, info.name, topleft);
 
 	return Plugin_Changed;
 }
