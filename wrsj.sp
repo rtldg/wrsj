@@ -23,6 +23,12 @@ public Plugin myinfo = {
 	url = "https://github.com/rtldg/wrsj"
 }
 
+native int Shavit_GetClientTrack(int client);
+native int Shavit_GetBhopStyle(int client);
+native int Shavit_GetReplayBotStyle(int entity);
+native int Shavit_GetReplayBotTrack(int entity);
+native bool Shavit_IsReplayEntity(int ent);
+
 Convar gCV_SourceJumpAPIKey;
 Convar gCV_SourceJumpAPIUrl;
 Convar gCV_SourceJumpDelay;
@@ -49,7 +55,8 @@ enum struct RecordInfo {
 StringMap gS_Maps;
 StringMap gS_MapsCachedTime;
 
-char gS_MapName[MAXPLAYERS + 1][128];
+char gS_ClientMap[MAXPLAYERS + 1][PLATFORM_MAX_PATH];
+char gS_CurrentMap[PLATFORM_MAX_PATH];
 
 public void OnPluginStart()
 {
@@ -67,6 +74,40 @@ public void OnPluginStart()
 	gS_MapsCachedTime = new StringMap();
 
 	AutoExecConfig();
+}
+
+public void OnMapStart()
+{
+	GetCurrentMap(gS_CurrentMap, sizeof(gS_CurrentMap));
+	GetMapDisplayName(gS_CurrentMap, gS_CurrentMap, sizeof(gS_CurrentMap));
+}
+
+public void OnConfigsExecuted()
+{
+	RetrieveWRSJ(0, gS_CurrentMap);
+}
+
+public Action Shavit_OnTopLeftHUD(int client, int target, char[] topleft, int topleftlength)
+{
+	ArrayList records;
+
+	if (!gS_Maps.GetValue(gS_CurrentMap, records))
+		return Plugin_Continue;
+
+	int isReplay = Shavit_IsReplayEntity(target);
+	int style = isReplay ? Shavit_GetReplayBotStyle(target) : Shavit_GetBhopStyle(target);
+	int track = isReplay ? Shavit_GetReplayBotTrack(target) : Shavit_GetClientTrack(target);
+
+	// main normal
+	if (style != 0 || track != 0)
+		return Plugin_Continue;
+
+	RecordInfo info;
+	records.GetArray(0, info);
+
+	Format(topleft, topleftlength, "SJ: %s\n%s", info.time, topleft);
+
+	return Plugin_Changed;
 }
 
 void BuildWRSJMenu(int client, char[] mapname)
@@ -125,8 +166,7 @@ int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
 
 		id = StringToInt(exploded[0]);
 		mapname = exploded[1];
-		gS_MapName[client] = mapname;
-
+		gS_ClientMap[client] = mapname;
 
 		RecordInfo record;
 		ArrayList records;
@@ -178,7 +218,7 @@ int SubMenu_Handler(Menu menu, MenuAction action, int client, int choice)
 {
 	if (action == MenuAction_Cancel && choice == MenuCancel_ExitBack)
 	{
-		BuildWRSJMenu(client, gS_MapName[client]);
+		BuildWRSJMenu(client, gS_ClientMap[client]);
 		delete menu;
 	}
 }
@@ -192,9 +232,9 @@ void CacheMap(char[] mapname, JSON_Array json)
 	ArrayList records;
 
 	if (gS_Maps.GetValue(mapname, records))
-		records.Clear();
-	else
-		records = new ArrayList(sizeof(RecordInfo));
+		delete records;
+
+	records = new ArrayList(sizeof(RecordInfo));
 
 	gS_MapsCachedTime.SetValue(mapname, GetEngineTime(), true);
 	gS_Maps.SetValue(mapname, records, true);
@@ -238,7 +278,7 @@ void ResponseBodyCallback(const char[] data, DataPack pack, int datalen)
 	pack.Reset();
 
 	int client = GetClientFromSerial(pack.ReadCell());
-	char mapname[160];
+	char mapname[PLATFORM_MAX_PATH];
 	pack.ReadString(mapname, sizeof(mapname));
 
 	CloseHandle(pack);
@@ -292,7 +332,7 @@ public void RequestCompletedCallback(Handle request, bool bFailure, bool bReques
 
 void RetrieveWRSJ(int client, char[] mapname)
 {
-	int serial = GetClientSerial(client);
+	int serial = client ? GetClientSerial(client) : 0;
 	char apikey[40];
 	char apiurl[230];
 
@@ -342,17 +382,15 @@ void RetrieveWRSJ(int client, char[] mapname)
 
 Action Command_WRSJ(int client, int args)
 {
-	if (args < 1)
-	{
-		ReplyToCommand(client, "Usage: !wrsj <mapname>");
-		return Plugin_Handled;
-	}
-
 	if (client == 0 || IsFakeClient(client))// || !IsClientAuthorized(client))
 		return Plugin_Handled;
 
-	char mapname[160];
-	GetCmdArg(1, mapname, sizeof(mapname));
+	char mapname[PLATFORM_MAX_PATH];
+
+	if (args < 1)
+		mapname = gS_CurrentMap;
+	else
+		GetCmdArg(1, mapname, sizeof(mapname));
 
 	float cached_time;
 	if (gS_MapsCachedTime.GetValue(mapname, cached_time))
