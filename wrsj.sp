@@ -19,7 +19,7 @@ public Plugin myinfo = {
 	name = "Sourcejump World Record",
 	author = "rtldg & Nairda",
 	description = "Grabs WRs from Sourcejump's API",
-	version = "1.1",
+	version = "1.2",
 	url = "https://github.com/rtldg/wrsj"
 }
 
@@ -91,7 +91,7 @@ public Action Shavit_OnTopLeftHUD(int client, int target, char[] topleft, int to
 {
 	ArrayList records;
 
-	if (!gS_Maps.GetValue(gS_CurrentMap, records))
+	if (!gS_Maps.GetValue(gS_CurrentMap, records) || !records || !records.Length)
 		return Plugin_Continue;
 
 	int isReplay = Shavit_IsReplayEntity(target);
