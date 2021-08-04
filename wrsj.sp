@@ -19,7 +19,7 @@ public Plugin myinfo = {
 	name = "Sourcejump World Record",
 	author = "rtldg & Nairda",
 	description = "Grabs WRs from Sourcejump's API",
-	version = "1.2",
+	version = "1.3",
 	url = "https://github.com/rtldg/wrsj"
 }
 
@@ -35,6 +35,7 @@ Convar gCV_SourceJumpDelay;
 Convar gCV_SourceJumpCacheSize;
 Convar gCV_SourceJumpCacheTime;
 Convar gCV_SourceJumpWRCount;
+Convar gCV_AfterTopleft;
 
 enum struct RecordInfo {
 	int id;
@@ -66,6 +67,7 @@ public void OnPluginStart()
 	gCV_SourceJumpCacheSize = new Convar("sj_api_cache_size", "12", "Number of maps to cache from Sourcejump API.");
 	gCV_SourceJumpCacheTime = new Convar("sj_api_cache_time", "666.0", "How many seconds to cache a map from Sourcejump API.", 0, true, 5.0);
 	gCV_SourceJumpWRCount = new Convar("sj_api_wr_count", "10", "How many top times should be shown in the !wrsj menu.");
+	gCV_AfterTopleft = new Convar("sj_after_topleft", "0", "Should the top-left text go before or after server WR&PB...", 0, true, 0.0, true, 1.0);
 
 	RegConsoleCmd("sm_wrsj", Command_WRSJ, "View global world records from Sourcejump's API.");
 	RegConsoleCmd("sm_sjwr", Command_WRSJ, "View global world records from Sourcejump's API.");
@@ -73,7 +75,7 @@ public void OnPluginStart()
 	gS_Maps = new StringMap();
 	gS_MapsCachedTime = new StringMap();
 
-	AutoExecConfig();
+	Convar.AutoExecConfig();
 }
 
 public void OnMapStart()
@@ -105,7 +107,20 @@ public Action Shavit_OnTopLeftHUD(int client, int target, char[] topleft, int to
 	RecordInfo info;
 	records.GetArray(0, info);
 
-	Format(topleft, topleftlength, "SJ: %s (%s)\n%s", info.time, info.name, topleft);
+	char sjtext[80];
+	FormatEx(sjtext, sizeof(sjtext), "SJ: %s (%s)", info.time, info.name);
+
+	if (gCV_AfterTopleft.BoolValue)
+		Format(
+			topleft,
+			topleftlength,
+			"%s%s\n%s",
+			(StrContains(topleft, "\n", true) != -1) ? "" : "\n",
+			topleft,
+			sjtext
+		);
+	else
+		Format(topleft, topleftlength, "%s\n%s", sjtext, topleft);
 
 	return Plugin_Changed;
 }
