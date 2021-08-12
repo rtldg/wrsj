@@ -19,7 +19,7 @@ public Plugin myinfo = {
 	name = "Sourcejump World Record",
 	author = "rtldg & Nairda",
 	description = "Grabs WRs from Sourcejump's API",
-	version = "1.3",
+	version = "1.4",
 	url = "https://github.com/rtldg/wrsj"
 }
 
@@ -144,7 +144,7 @@ void BuildWRSJMenu(int client, char[] mapname)
 		char line[128];
 		FormatEx(line, sizeof(line), "#%d - %s - %s (%d Jumps)", i+1, record.name, record.time, record.jumps);
 
-		char info[192];
+		char info[PLATFORM_MAX_PATH*2];
 		FormatEx(info, sizeof(info), "%d;%s", record.id, mapname);
 		menu.AddItem(info, line);
 	}
@@ -166,9 +166,8 @@ int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
 	if (action == MenuAction_Select)
 	{
 		int id;
-		char mapname[128];
-		char info[128];
-		menu.GetItem(choice, info, 128);
+		char info[PLATFORM_MAX_PATH*2];
+		menu.GetItem(choice, info, sizeof(info));
 
 		if (StringToInt(info) == -1)
 		{
@@ -176,16 +175,15 @@ int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
 			return 0;
 		}
 
-		char exploded[2][128];
-		ExplodeString(info, ";", exploded, 2, 128, true);
+		char exploded[2][PLATFORM_MAX_PATH];
+		ExplodeString(info, ";", exploded, 2, PLATFORM_MAX_PATH, true);
 
 		id = StringToInt(exploded[0]);
-		mapname = exploded[1];
-		gS_ClientMap[client] = mapname;
+		gS_ClientMap[client] = exploded[1];
 
 		RecordInfo record;
 		ArrayList records;
-		gS_Maps.GetValue(mapname, records);
+		gS_Maps.GetValue(gS_ClientMap[client], records);
 
 		for (int i = 0; i < records.Length; i++)
 		{
