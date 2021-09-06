@@ -19,7 +19,7 @@ public Plugin myinfo = {
 	name = "Sourcejump World Record",
 	author = "rtldg & Nairda",
 	description = "Grabs WRs from Sourcejump's API",
-	version = "1.4",
+	version = "1.5",
 	url = "https://github.com/rtldg/wrsj"
 }
 
@@ -367,10 +367,10 @@ void RetrieveWRSJ(int client, char[] mapname)
 	//ReplyToCommand(client, "url = %s", apiurl);
 
 #if USE_RIPEXT
-	HTTPClient http = new HTTPClient(apiurl);
-	http.SetHeader("api-key", apikey);
+	HTTPRequest http = new HTTPRequest(apiurl);
+	http.SetHeader("api-key", "%s", apikey);
 	//http.SetHeader("user-agent", USERAGENT); // doesn't work :(
-	http.Get("", RequestCallback, pack);
+	http.Get(RequestCallback, pack);
 #else
 	Handle request;
 	if (!(request = SteamWorks_CreateHTTPRequest(k_EHTTPMethodGET, apiurl))
