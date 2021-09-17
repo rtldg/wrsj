@@ -19,7 +19,7 @@ public Plugin myinfo = {
 	name = "Sourcejump World Record",
 	author = "rtldg & Nairda",
 	description = "Grabs WRs from Sourcejump's API",
-	version = "1.5",
+	version = "1.6",
 	url = "https://github.com/rtldg/wrsj"
 }
 
@@ -56,6 +56,7 @@ enum struct RecordInfo {
 StringMap gS_Maps;
 StringMap gS_MapsCachedTime;
 
+int gI_CurrentPagePosition[MAXPLAYERS + 1];
 char gS_ClientMap[MAXPLAYERS + 1][PLATFORM_MAX_PATH];
 char gS_CurrentMap[PLATFORM_MAX_PATH];
 
@@ -125,7 +126,7 @@ public Action Shavit_OnTopLeftHUD(int client, int target, char[] topleft, int to
 	return Plugin_Changed;
 }
 
-void BuildWRSJMenu(int client, char[] mapname)
+void BuildWRSJMenu(int client, char[] mapname, int first_item=0)
 {
 	ArrayList records;
 	gS_Maps.GetValue(mapname, records);
@@ -158,7 +159,9 @@ void BuildWRSJMenu(int client, char[] mapname)
 	}
 
 	menu.ExitButton = true;
-	menu.Display(client, MENU_TIME_FOREVER);
+	menu.DisplayAt(client, first_item, MENU_TIME_FOREVER);
+
+	gI_CurrentPagePosition[client] = 0;
 }
 
 int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
@@ -206,17 +209,21 @@ int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
 		submenu.SetTitle(display);
 
 		FormatEx(display, sizeof(display), "Time: %s (%s)", record.time, record.wrDif);
-		submenu.AddItem("-1", display);
+		submenu.AddItem("-1", display, ITEMDRAW_DISABLED);
 		FormatEx(display, sizeof(display), "Jumps: %d", record.jumps);
-		submenu.AddItem("-1", display);
+		submenu.AddItem("-1", display, ITEMDRAW_DISABLED);
 		FormatEx(display, sizeof(display), "Strafes: %d (%.2f%%)", record.strafes, record.sync);
-		submenu.AddItem("-1", display);
+		submenu.AddItem("-1", display, ITEMDRAW_DISABLED);
 		FormatEx(display, sizeof(display), "Server: %s", record.hostname);
-		submenu.AddItem("-1", display);
+		submenu.AddItem("-1", display, ITEMDRAW_DISABLED);
+		FormatEx(display, sizeof(display), "Date: %s", record.date);
+		submenu.AddItem("-1", display, ITEMDRAW_DISABLED);
 
 		submenu.ExitBackButton = true;
 		submenu.ExitButton = true;
 		submenu.Display(client, MENU_TIME_FOREVER);
+
+		gI_CurrentPagePosition[client] = GetMenuSelectionPosition();
 	}
 
 	else if (action == MenuAction_End)
@@ -231,7 +238,7 @@ int SubMenu_Handler(Menu menu, MenuAction action, int client, int choice)
 {
 	if (action == MenuAction_Cancel && choice == MenuCancel_ExitBack)
 	{
-		BuildWRSJMenu(client, gS_ClientMap[client]);
+		BuildWRSJMenu(client, gS_ClientMap[client], gI_CurrentPagePosition[client]);
 		delete menu;
 	}
 }
