@@ -19,7 +19,7 @@ public Plugin myinfo = {
 	name = "Sourcejump World Record",
 	author = "rtldg & Nairda",
 	description = "Grabs WRs from Sourcejump's API",
-	version = "1.6",
+	version = "1.7",
 	url = "https://github.com/rtldg/wrsj"
 }
 
@@ -35,7 +35,10 @@ Convar gCV_SourceJumpDelay;
 Convar gCV_SourceJumpCacheSize;
 Convar gCV_SourceJumpCacheTime;
 Convar gCV_SourceJumpWRCount;
+Convar gCV_ShowInTopleft;
 Convar gCV_AfterTopleft;
+Convar gCV_TrimTopleft;
+Convar gCV_ShowForEveryStyle;
 
 enum struct RecordInfo {
 	int id;
@@ -68,7 +71,10 @@ public void OnPluginStart()
 	gCV_SourceJumpCacheSize = new Convar("sj_api_cache_size", "12", "Number of maps to cache from Sourcejump API.");
 	gCV_SourceJumpCacheTime = new Convar("sj_api_cache_time", "666.0", "How many seconds to cache a map from Sourcejump API.", 0, true, 5.0);
 	gCV_SourceJumpWRCount = new Convar("sj_api_wr_count", "10", "How many top times should be shown in the !wrsj menu.");
+	gCV_ShowInTopleft = new Convar("sj_show_topleft", "1", "Whether to show the SJ WR be shown in the top-left text.", 0, true, 0.0, true, 1.0);
 	gCV_AfterTopleft = new Convar("sj_after_topleft", "0", "Should the top-left text go before or after server WR&PB...", 0, true, 0.0, true, 1.0);
+	gCV_TrimTopleft = new Convar("sj_trim_topleft", "0", "Should the top-left text be trimmed (so the SJ WR would be at the top if there's no server WR for example).", 0, true, 0.0, true, 1.0);
+	gCV_ShowForEveryStyle = new Convar("sj_every_style", "1", "Should the top-left text be shown for every style that's not Normal also?", 0, true, 0.0, true, 1.0);
 
 	RegConsoleCmd("sm_wrsj", Command_WRSJ, "View global world records from Sourcejump's API.");
 	RegConsoleCmd("sm_sjwr", Command_WRSJ, "View global world records from Sourcejump's API.");
@@ -92,6 +98,9 @@ public void OnConfigsExecuted()
 
 public Action Shavit_OnTopLeftHUD(int client, int target, char[] topleft, int topleftlength)
 {
+	if (!gCV_ShowInTopleft.BoolValue)
+		return Plugin_Continue;
+
 	ArrayList records;
 
 	if (!gS_Maps.GetValue(gS_CurrentMap, records) || !records || !records.Length)
@@ -101,8 +110,7 @@ public Action Shavit_OnTopLeftHUD(int client, int target, char[] topleft, int to
 	int style = isReplay ? Shavit_GetReplayBotStyle(target) : Shavit_GetBhopStyle(target);
 	int track = isReplay ? Shavit_GetReplayBotTrack(target) : Shavit_GetClientTrack(target);
 
-	// main normal
-	if (style != 0 || track != 0)
+	if ((!gCV_ShowForEveryStyle.BoolValue && style != 0) || track != 0)
 		return Plugin_Continue;
 
 	RecordInfo info;
@@ -122,6 +130,9 @@ public Action Shavit_OnTopLeftHUD(int client, int target, char[] topleft, int to
 		);
 	else
 		Format(topleft, topleftlength, "%s\n%s", sjtext, topleft);
+
+	if (gCV_TrimTopleft.BoolValue)
+		TrimString(topleft);
 
 	return Plugin_Changed;
 }
