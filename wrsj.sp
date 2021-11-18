@@ -39,6 +39,7 @@ Convar gCV_ShowInTopleft;
 Convar gCV_AfterTopleft;
 Convar gCV_TrimTopleft;
 Convar gCV_ShowForEveryStyle;
+Convar gCV_ShowTierInTopleft;
 
 enum struct RecordInfo {
 	int id;
@@ -49,7 +50,7 @@ enum struct RecordInfo {
 	char time[13];
 	char wrDif[13];
 	char steamid[20];
-	//int tier;
+	int tier;
 	char date[11]; // eventually increase?
 	float sync;
 	int strafes;
@@ -72,6 +73,7 @@ public void OnPluginStart()
 	gCV_SourceJumpCacheTime = new Convar("sj_api_cache_time", "666.0", "How many seconds to cache a map from Sourcejump API.", 0, true, 5.0);
 	gCV_SourceJumpWRCount = new Convar("sj_api_wr_count", "10", "How many top times should be shown in the !wrsj menu.");
 	gCV_ShowInTopleft = new Convar("sj_show_topleft", "1", "Whether to show the SJ WR be shown in the top-left text.", 0, true, 0.0, true, 1.0);
+	gCV_ShowTierInTopleft = new Convar("sj_show_tier_topleft", "0", "Show tier in top-left text.", 0, true, 0.0, true, 1.0);
 	gCV_AfterTopleft = new Convar("sj_after_topleft", "0", "Should the top-left text go before or after server WR&PB...", 0, true, 0.0, true, 1.0);
 	gCV_TrimTopleft = new Convar("sj_trim_topleft", "0", "Should the top-left text be trimmed (so the SJ WR would be at the top if there's no server WR for example).", 0, true, 0.0, true, 1.0);
 	gCV_ShowForEveryStyle = new Convar("sj_every_style", "1", "Should the top-left text be shown for every style that's not Normal also?", 0, true, 0.0, true, 1.0);
@@ -118,6 +120,8 @@ public Action Shavit_OnTopLeftHUD(int client, int target, char[] topleft, int to
 
 	char sjtext[80];
 	FormatEx(sjtext, sizeof(sjtext), "SJ: %s (%s)", info.time, info.name);
+	if (gCV_ShowTierInTopleft.BoolValue)
+		Format(sjtext, sizeof(sjtext), "%s (T%d)", sjtext, info.tier);
 
 	if (gCV_AfterTopleft.BoolValue)
 		Format(
@@ -289,6 +293,7 @@ void CacheMap(char[] mapname, JSON_Array json)
 		info.sync = record.GetFloat("sync");
 		info.strafes = record.GetInt("strafes");
 		info.jumps = record.GetInt("jumps");
+		info.tier = record.GetInt("tier");
 
 		records.PushArray(info, sizeof(info));
 
