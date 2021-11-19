@@ -19,7 +19,7 @@ public Plugin myinfo = {
 	name = "Sourcejump World Record",
 	author = "rtldg & Nairda",
 	description = "Grabs WRs from Sourcejump's API",
-	version = "1.7",
+	version = "1.8",
 	url = "https://github.com/rtldg/wrsj"
 }
 
