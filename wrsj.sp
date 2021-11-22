@@ -19,7 +19,7 @@ public Plugin myinfo = {
 	name = "Sourcejump World Record",
 	author = "rtldg & Nairda",
 	description = "Grabs WRs from Sourcejump's API",
-	version = "1.8",
+	version = "1.9",
 	url = "https://github.com/rtldg/wrsj"
 }
 
@@ -300,7 +300,7 @@ void CacheMap(char[] mapname, JSON_Array json)
 #if USE_RIPEXT
 		delete record;
 #else
-		// ???
+		// we fully delete the json tree later
 #endif
 	}
 }
@@ -342,6 +342,13 @@ void ResponseBodyCallback(const char[] data, DataPack pack, int datalen)
 #endif
 
 	CacheMap(mapname, records);
+
+#if USE_RIPEXT
+	// the records handle is closed by ripext post-callback
+#else
+	json_cleanup(records);
+#endif
+
 	if (client != 0)
 		BuildWRSJMenu(client, mapname);
 }
@@ -352,7 +359,7 @@ public void RequestCompletedCallback(Handle request, bool bFailure, bool bReques
 	pack.Reset();
 	int client = GetClientFromSerial(pack.ReadCell());
 
-	ReplyToCommand(client, "bFailure = %d, bRequestSuccessful = %d, eStatusCode = %d", bFailure, bRequestSuccessful, eStatusCode);
+	//ReplyToCommand(client, "bFailure = %d, bRequestSuccessful = %d, eStatusCode = %d", bFailure, bRequestSuccessful, eStatusCode);
 
 	if (bFailure || !bRequestSuccessful || eStatusCode != k_EHTTPStatusCode200OK)
 	{
