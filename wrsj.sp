@@ -19,7 +19,7 @@ public Plugin myinfo = {
 	name = "Sourcejump World Record",
 	author = "rtldg & Nairda",
 	description = "Grabs WRs from Sourcejump's API",
-	version = "1.9",
+	version = "1.10",
 	url = "https://github.com/rtldg/wrsj"
 }
 
@@ -111,6 +111,8 @@ public Action Shavit_OnTopLeftHUD(int client, int target, char[] topleft, int to
 	int isReplay = Shavit_IsReplayEntity(target);
 	int style = isReplay ? Shavit_GetReplayBotStyle(target) : Shavit_GetBhopStyle(target);
 	int track = isReplay ? Shavit_GetReplayBotTrack(target) : Shavit_GetClientTrack(target);
+	style = (style == -1) ? 0 : style; // central replay bot probably
+	track = (track == -1) ? 0 : track; // central replay bot probably
 
 	if ((!gCV_ShowForEveryStyle.BoolValue && style != 0) || track != 0)
 		return Plugin_Continue;
