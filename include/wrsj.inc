@@ -49,3 +49,22 @@ native bool WRSJ_QueryMap(const char[] map, bool cached_results_okay=true);
  * @noreturn
  */
 forward void WRSJ_OnQueryFinished(const char map[PLATFORM_MAX_PATH], ArrayList records);
+
+
+public SharedPlugin __pl_wrsj =
+{
+	name = "wrsj",
+	file = "wrsj.smx",
+#if defined REQUIRE_PLUGIN
+	required = 1
+#else
+	required = 0
+#endif
+};
+
+#if !defined REQUIRE_PLUGIN
+public void __pl_wrsj_SetNTVOptional()
+{
+	MarkNativeAsOptional("WRSJ_QueryMap");
+}
+#endif
