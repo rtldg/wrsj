@@ -1,6 +1,25 @@
+/*
+ * WRSJ by rtldg
+ *
+ * This program is free software; you can redistribute it and/or modify it under
+ * the terms of the GNU General Public License, version 3.0, as published by the
+ * Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+ * details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
 #include <sourcemod>
 #include <convar_class>
 #include <adt_trie> // StringMap
+
+#include <wrsj>
 
 #define USE_RIPEXT 1
 #if USE_RIPEXT
@@ -19,7 +38,7 @@ public Plugin myinfo = {
 	name = "Sourcejump World Record",
 	author = "rtldg & Nairda",
 	description = "Grabs WRs from Sourcejump's API",
-	version = "1.10",
+	version = "1.11",
 	url = "https://github.com/rtldg/wrsj"
 }
 
@@ -41,28 +60,26 @@ Convar gCV_TrimTopleft;
 Convar gCV_ShowForEveryStyle;
 Convar gCV_ShowTierInTopleft;
 
-enum struct RecordInfo {
-	int id;
-	char name[MAX_NAME_LENGTH];
-	//char country[];
-	//char mapname[90]; // longest map name I've seen is bhop_pneumonoultramicroscopicsilicovolcanoconiosis_v3_001.bsp
-	char hostname[111];
-	char time[13];
-	char wrDif[13];
-	char steamid[20];
-	int tier;
-	char date[11]; // eventually increase?
-	float sync;
-	int strafes;
-	int jumps;
-}
-
 StringMap gS_Maps;
 StringMap gS_MapsCachedTime;
 
 int gI_CurrentPagePosition[MAXPLAYERS + 1];
 char gS_ClientMap[MAXPLAYERS + 1][PLATFORM_MAX_PATH];
 char gS_CurrentMap[PLATFORM_MAX_PATH];
+
+Handle gH_Forwards_OnQueryFinished = null;
+
+
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
+{
+	gH_Forwards_OnQueryFinished = CreateGlobalForward("WRSJ_OnQueryFinished", ET_Ignore, Param_String, Param_Cell);
+
+	CreateNative("WRSJ_QueryMap", Native_QueryMap);
+
+	RegPluginLibrary("wrsj");
+
+	return APLRes_Success;
+}
 
 public void OnPluginStart()
 {
@@ -117,7 +134,7 @@ public Action Shavit_OnTopLeftHUD(int client, int target, char[] topleft, int to
 	if ((!gCV_ShowForEveryStyle.BoolValue && style != 0) || track != 0)
 		return Plugin_Continue;
 
-	RecordInfo info;
+	WRSJ_RecordInfo info;
 	records.GetArray(0, info);
 
 	char sjtext[80];
@@ -156,7 +173,7 @@ void BuildWRSJMenu(int client, char[] mapname, int first_item=0)
 
 	for (int i = 0; i < maxrecords; i++)
 	{
-		RecordInfo record;
+		WRSJ_RecordInfo record;
 		records.GetArray(i, record, sizeof(record));
 
 		char line[128];
@@ -201,7 +218,7 @@ int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
 		id = StringToInt(exploded[0]);
 		gS_ClientMap[client] = exploded[1];
 
-		RecordInfo record;
+		WRSJ_RecordInfo record;
 		ArrayList records;
 		gS_Maps.GetValue(gS_ClientMap[client], records);
 
@@ -261,9 +278,9 @@ int SubMenu_Handler(Menu menu, MenuAction action, int client, int choice)
 }
 
 #if USE_RIPEXT
-void CacheMap(char[] mapname, JSONArray json)
+void CacheMap(char mapname[PLATFORM_MAX_PATH], JSONArray json)
 #else
-void CacheMap(char[] mapname, JSON_Array json)
+void CacheMap(char mapname[PLATFORM_MAX_PATH], JSON_Array json)
 #endif
 {
 	ArrayList records;
@@ -271,7 +288,7 @@ void CacheMap(char[] mapname, JSON_Array json)
 	if (gS_Maps.GetValue(mapname, records))
 		delete records;
 
-	records = new ArrayList(sizeof(RecordInfo));
+	records = new ArrayList(sizeof(WRSJ_RecordInfo));
 
 	gS_MapsCachedTime.SetValue(mapname, GetEngineTime(), true);
 	gS_Maps.SetValue(mapname, records, true);
@@ -284,12 +301,13 @@ void CacheMap(char[] mapname, JSON_Array json)
 		JSON_Object record = json.GetObject(i);
 #endif
 
-		RecordInfo info;
+		WRSJ_RecordInfo info;
 		info.id = record.GetInt("id");
 		record.GetString("name", info.name, sizeof(info.name));
 		record.GetString("hostname", info.hostname, sizeof(info.hostname));
 		record.GetString("time", info.time, sizeof(info.time));
 		record.GetString("steamid", info.steamid, sizeof(info.steamid));
+		info.accountid = SteamIDToAccountID_no_64(info.steamid);
 		record.GetString("date", info.date, sizeof(info.date));
 		record.GetString("wrDif", info.wrDif, sizeof(info.wrDif));
 		info.sync = record.GetFloat("sync");
@@ -305,6 +323,8 @@ void CacheMap(char[] mapname, JSON_Array json)
 		// we fully delete the json tree later
 #endif
 	}
+
+	CallOnQueryFinishedCallback(mapname, records);
 }
 
 #if USE_RIPEXT
@@ -325,6 +345,8 @@ void ResponseBodyCallback(const char[] data, DataPack pack, int datalen)
 	//PrintToChat(client, "status = %d, error = '%s'", response.Status, error);
 	if (response.Status != HTTPStatus_OK)
 	{
+		CallOnQueryFinishedCallback(mapname, null);
+
 		if (client != 0)
 			PrintToChat(client, "WRSJ: Sourcejump API request failed");
 		LogError("WRSJ: Sourcejump API request failed");
@@ -336,6 +358,8 @@ void ResponseBodyCallback(const char[] data, DataPack pack, int datalen)
 	JSON_Array records = view_as<JSON_Array>(json_decode(data));
 	if (records == null)
 	{
+		CallOnQueryFinishedCallback(mapname, null);
+
 		if (client != 0)
 			ReplyToCommand(client, "WRSJ: bbb");
 		LogError("WRSJ: bbb");
@@ -365,6 +389,12 @@ public void RequestCompletedCallback(Handle request, bool bFailure, bool bReques
 
 	if (bFailure || !bRequestSuccessful || eStatusCode != k_EHTTPStatusCode200OK)
 	{
+		char map[PLATFORM_MAX_PATH];
+		pack.ReadString(map, sizeof(map));
+		CallOnQueryFinishedCallback(map, null);
+
+		delete pack;
+
 		if (client != 0)
 			ReplyToCommand(client, "WRSJ: Sourcejump API request failed");
 		LogError("WRSJ: Sourcejump API request failed");
@@ -375,7 +405,7 @@ public void RequestCompletedCallback(Handle request, bool bFailure, bool bReques
 }
 #endif
 
-void RetrieveWRSJ(int client, char[] mapname)
+bool RetrieveWRSJ(int client, char[] mapname)
 {
 	int serial = client ? GetClientSerial(client) : 0;
 	char apikey[40];
@@ -388,7 +418,7 @@ void RetrieveWRSJ(int client, char[] mapname)
 	{
 		ReplyToCommand(client, "WRSJ: Sourcejump API key or URL is not set.");
 		LogError("WRSJ: Sourcejump API key or URL is not set.");
-		return;
+		return false;
 	}
 
 	DataPack pack = new DataPack();
@@ -420,9 +450,11 @@ void RetrieveWRSJ(int client, char[] mapname)
 		CloseHandle(request);
 		ReplyToCommand(client, "WRSJ: failed to setup & send HTTP request");
 		LogError("WRSJ: failed to setup & send HTTP request");
-		return;
+		return false;
 	}
 #endif
+
+	return true;
 }
 
 Action Command_WRSJ(int client, int args)
@@ -449,4 +481,73 @@ Action Command_WRSJ(int client, int args)
 
 	RetrieveWRSJ(client, mapname);
 	return Plugin_Handled;
+}
+
+
+stock void LowercaseStringxx(char[] str)
+{
+	for (int i = 0; str[i] != 0; i++)
+	{
+		str[i] = CharToLower(str[i]);
+	}
+}
+
+public any Native_QueryMap(Handle plugin, int numParams)
+{
+	char map[PLATFORM_MAX_PATH];
+	GetNativeString(1, map, sizeof(map));
+	LowercaseStringxx(map);
+
+	bool cache_okay = GetNativeCell(2);
+
+	if (cache_okay)
+	{
+		ArrayList records;
+
+		if (gS_Maps.GetValue(map, records) && records && records.Length)
+		{
+			CallOnQueryFinishedCallback(map, records);
+			return true;
+		}
+	}
+
+	return RetrieveWRSJ(0, map);
+}
+
+void CallOnQueryFinishedCallback(const char map[PLATFORM_MAX_PATH], ArrayList records)
+{
+	Call_StartForward(gH_Forwards_OnQueryFinished);
+	Call_PushString(map);
+	Call_PushCell(records);
+	Call_Finish();
+}
+
+stock int SteamIDToAccountID_no_64(const char[] sInput)
+{
+	char sSteamID[32];
+	strcopy(sSteamID, sizeof(sSteamID), sInput);
+	ReplaceString(sSteamID, 32, "\"", "");
+	TrimString(sSteamID);
+
+	if (StrContains(sSteamID, "STEAM_") != -1)
+	{
+		ReplaceString(sSteamID, 32, "STEAM_", "");
+
+		char parts[3][11];
+		ExplodeString(sSteamID, ":", parts, 3, 11);
+
+		// Let X, Y and Z constants be defined by the SteamID: STEAM_X:Y:Z.
+		// Using the formula W=Z*2+Y, a SteamID can be converted:
+		return StringToInt(parts[2]) * 2 + StringToInt(parts[1]);
+	}
+	else if (StrContains(sSteamID, "U:1:") != -1)
+	{
+		ReplaceString(sSteamID, 32, "[", "");
+		ReplaceString(sSteamID, 32, "U:1:", "");
+		ReplaceString(sSteamID, 32, "]", "");
+
+		return StringToInt(sSteamID);
+	}
+
+	return 0;
 }
