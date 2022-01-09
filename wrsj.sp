@@ -38,7 +38,7 @@ public Plugin myinfo = {
 	name = "Sourcejump World Record",
 	author = "rtldg & Nairda",
 	description = "Grabs WRs from Sourcejump's API",
-	version = "1.11",
+	version = "1.12",
 	url = "https://github.com/rtldg/wrsj"
 }
 
@@ -75,6 +75,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	gH_Forwards_OnQueryFinished = CreateGlobalForward("WRSJ_OnQueryFinished", ET_Ignore, Param_String, Param_Cell);
 
 	CreateNative("WRSJ_QueryMap", Native_QueryMap);
+	CreateNative("WRSJ_QueryMapWithFunc", Native_QueryMapWithFunc);
 
 	RegPluginLibrary("wrsj");
 
@@ -88,7 +89,7 @@ public void OnPluginStart()
 	gCV_SourceJumpDelay = new Convar("sj_api_delay", "1.0", "Minimum delay between requests to Sourcejump API.", 0, true, 0.5);
 	gCV_SourceJumpCacheSize = new Convar("sj_api_cache_size", "12", "Number of maps to cache from Sourcejump API.");
 	gCV_SourceJumpCacheTime = new Convar("sj_api_cache_time", "666.0", "How many seconds to cache a map from Sourcejump API.", 0, true, 5.0);
-	gCV_SourceJumpWRCount = new Convar("sj_api_wr_count", "10", "How many top times should be shown in the !wrsj menu.");
+	gCV_SourceJumpWRCount = new Convar("sj_api_wr_count", "50", "How many top times should be shown in the !wrsj menu.", 0, true, 0.0);
 	gCV_ShowInTopleft = new Convar("sj_show_topleft", "1", "Whether to show the SJ WR be shown in the top-left text.", 0, true, 0.0, true, 1.0);
 	gCV_ShowTierInTopleft = new Convar("sj_show_tier_topleft", "0", "Show tier in top-left text.", 0, true, 0.0, true, 1.0);
 	gCV_AfterTopleft = new Convar("sj_after_topleft", "0", "Should the top-left text go before or after server WR&PB...", 0, true, 0.0, true, 1.0);
@@ -278,9 +279,9 @@ int SubMenu_Handler(Menu menu, MenuAction action, int client, int choice)
 }
 
 #if USE_RIPEXT
-void CacheMap(char mapname[PLATFORM_MAX_PATH], JSONArray json)
+ArrayList CacheMap(char mapname[PLATFORM_MAX_PATH], JSONArray json)
 #else
-void CacheMap(char mapname[PLATFORM_MAX_PATH], JSON_Array json)
+ArrayList CacheMap(char mapname[PLATFORM_MAX_PATH], JSON_Array json)
 #endif
 {
 	ArrayList records;
@@ -325,6 +326,7 @@ void CacheMap(char mapname[PLATFORM_MAX_PATH], JSON_Array json)
 	}
 
 	CallOnQueryFinishedCallback(mapname, records);
+	return records;
 }
 
 #if USE_RIPEXT
@@ -339,6 +341,8 @@ void ResponseBodyCallback(const char[] data, DataPack pack, int datalen)
 	char mapname[PLATFORM_MAX_PATH];
 	pack.ReadString(mapname, sizeof(mapname));
 
+	DataPack AAAAA = pack.ReadCell();
+
 	CloseHandle(pack);
 
 #if USE_RIPEXT
@@ -346,6 +350,8 @@ void ResponseBodyCallback(const char[] data, DataPack pack, int datalen)
 	if (response.Status != HTTPStatus_OK)
 	{
 		CallOnQueryFinishedCallback(mapname, null);
+		if (AAAAA)
+			CallOnQueryFinishedWithFunctionCallback(mapname, null, AAAAA);
 
 		if (client != 0)
 			PrintToChat(client, "WRSJ: Sourcejump API request failed");
@@ -359,6 +365,8 @@ void ResponseBodyCallback(const char[] data, DataPack pack, int datalen)
 	if (records == null)
 	{
 		CallOnQueryFinishedCallback(mapname, null);
+		if (AAAAA)
+			CallOnQueryFinishedWithFunctionCallback(mapname, null, AAAAA);
 
 		if (client != 0)
 			ReplyToCommand(client, "WRSJ: bbb");
@@ -367,13 +375,16 @@ void ResponseBodyCallback(const char[] data, DataPack pack, int datalen)
 	}
 #endif
 
-	CacheMap(mapname, records);
+	ArrayList records2 = CacheMap(mapname, records);
 
 #if USE_RIPEXT
 	// the records handle is closed by ripext post-callback
 #else
 	json_cleanup(records);
 #endif
+
+	if (AAAAA)
+		CallOnQueryFinishedWithFunctionCallback(mapname, records2, AAAAA);
 
 	if (client != 0)
 		BuildWRSJMenu(client, mapname);
@@ -392,7 +403,9 @@ public void RequestCompletedCallback(Handle request, bool bFailure, bool bReques
 		char map[PLATFORM_MAX_PATH];
 		pack.ReadString(map, sizeof(map));
 		CallOnQueryFinishedCallback(map, null);
-
+		DataPack AAAAA = pack.ReadCell();
+		if (AAAAA)
+			CallOnQueryFinishedWithFunctionCallback(map, null, AAAAA);
 		delete pack;
 
 		if (client != 0)
@@ -405,7 +418,7 @@ public void RequestCompletedCallback(Handle request, bool bFailure, bool bReques
 }
 #endif
 
-bool RetrieveWRSJ(int client, char[] mapname)
+bool RetrieveWRSJ(int client, char[] mapname, DataPack MOREPACKS=null)
 {
 	int serial = client ? GetClientSerial(client) : 0;
 	char apikey[40];
@@ -424,6 +437,7 @@ bool RetrieveWRSJ(int client, char[] mapname)
 	DataPack pack = new DataPack();
 	pack.WriteCell(serial);
 	pack.WriteString(mapname);
+	pack.WriteCell(MOREPACKS);
 
 	StrCat(apiurl, sizeof(apiurl), mapname);
 	//ReplyToCommand(client, "url = %s", apiurl);
@@ -512,6 +526,53 @@ public any Native_QueryMap(Handle plugin, int numParams)
 	}
 
 	return RetrieveWRSJ(0, map);
+}
+
+public any Native_QueryMapWithFunc(Handle plugin, int numParams)
+{
+	char map[PLATFORM_MAX_PATH];
+	GetNativeString(1, map, sizeof(map));
+	LowercaseStringxx(map);
+
+	bool cache_okay = GetNativeCell(2);
+
+	DataPack data = new DataPack();
+	data.WriteFunction(GetNativeFunction(3));
+	data.WriteCell(plugin);
+	data.WriteCell(GetNativeCell(4));
+
+	if (cache_okay)
+	{
+		ArrayList records;
+
+		if (gS_Maps.GetValue(map, records) && records && records.Length)
+		{
+			CallOnQueryFinishedWithFunctionCallback(map, records, data);
+			return true;
+		}
+	}
+
+	bool res = RetrieveWRSJ(0, map, data);
+
+	if (!res)
+		delete data;
+
+	return res;
+}
+
+void CallOnQueryFinishedWithFunctionCallback(const char map[PLATFORM_MAX_PATH], ArrayList records, DataPack callerinfo)
+{
+	callerinfo.Reset();
+	Function func = callerinfo.ReadFunction();
+	Handle plugin = callerinfo.ReadCell();
+	int callerdata = callerinfo.ReadCell();
+	delete callerinfo;
+
+	Call_StartFunction(plugin, func);
+	Call_PushString(map);
+	Call_PushCell(records);
+	Call_PushCell(callerdata);
+	Call_Finish();
 }
 
 void CallOnQueryFinishedCallback(const char map[PLATFORM_MAX_PATH], ArrayList records)

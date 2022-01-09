@@ -26,11 +26,16 @@ enum struct WRSJ_RecordInfo {
 	char steamid[24];
 	int accountid;
 	int tier;
-	char date[32]; // eventually increase?
+	char date[32];
 	float sync;
 	int strafes;
 	int jumps;
 }
+
+typeset WRSJ_QueryFinishedFunc
+{
+	function void (const char map[PLATFORM_MAX_PATH], ArrayList records, any callerdata);
+};
 
 /**
  * asdf
@@ -40,6 +45,21 @@ enum struct WRSJ_RecordInfo {
  * @return                          Returns true if the http-request library "sent" the request. false if not...
  */
 native bool WRSJ_QueryMap(const char[] map, bool cached_results_okay=true);
+
+/*
+void QueryFinished(const char map[PLATFORM_MAX_PATH], ArrayList records, any callerdata)
+{
+	PrintToServer("%s %d %d %xh", map, records, records?records.Length:-1, callerdata);
+	// example output: bhop_badges 0xFE1A03F7 42 0x69
+}
+
+Action Command_ASDF(int client, int args)
+{
+	PrintToServer("res = %d", WRSJ_QueryMapWithFunc("bhop_badges", false, QueryFinished, 0x69));
+	return Plugin_Handled;
+}
+*/
+native bool WRSJ_QueryMapWithFunc(const char[] map, bool cached_results_okay, WRSJ_QueryFinishedFunc func, any callerdata);
 
 /**
  * Called when WRSJ has some results for the map.
