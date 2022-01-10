@@ -86,5 +86,6 @@ public SharedPlugin __pl_wrsj =
 public void __pl_wrsj_SetNTVOptional()
 {
 	MarkNativeAsOptional("WRSJ_QueryMap");
+	MarkNativeAsOptional("WRSJ_OnQueryFinished");
 }
 #endif
