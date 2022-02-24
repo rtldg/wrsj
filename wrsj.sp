@@ -72,6 +72,12 @@ Handle gH_Forwards_OnQueryFinished = null;
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
+	MarkNativeAsOptional("Shavit_GetClientTrack");
+	MarkNativeAsOptional("Shavit_GetBhopStyle");
+	MarkNativeAsOptional("Shavit_GetReplayBotStyle");
+	MarkNativeAsOptional("Shavit_GetReplayBotTrack");
+	MarkNativeAsOptional("Shavit_IsReplayEntity");
+
 	gH_Forwards_OnQueryFinished = CreateGlobalForward("WRSJ_OnQueryFinished", ET_Ignore, Param_String, Param_Cell);
 
 	CreateNative("WRSJ_QueryMap", Native_QueryMap);
@@ -126,7 +132,7 @@ public Action Shavit_OnTopLeftHUD(int client, int target, char[] topleft, int to
 	if (!gS_Maps.GetValue(gS_CurrentMap, records) || !records || !records.Length)
 		return Plugin_Continue;
 
-	int isReplay = Shavit_IsReplayEntity(target);
+	int isReplay = IsFakeClient(target) || Shavit_IsReplayEntity(target);
 	int style = isReplay ? Shavit_GetReplayBotStyle(target) : Shavit_GetBhopStyle(target);
 	int track = isReplay ? Shavit_GetReplayBotTrack(target) : Shavit_GetClientTrack(target);
 	style = (style == -1) ? 0 : style; // central replay bot probably
