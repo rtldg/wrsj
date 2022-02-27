@@ -132,7 +132,7 @@ public Action Shavit_OnTopLeftHUD(int client, int target, char[] topleft, int to
 	if (!gS_Maps.GetValue(gS_CurrentMap, records) || !records || !records.Length)
 		return Plugin_Continue;
 
-	int isReplay = IsFakeClient(target) || Shavit_IsReplayEntity(target);
+	int isReplay = !(1<=target<=MaxClients) || IsFakeClient(target);// || Shavit_IsReplayEntity(target);
 	int style = isReplay ? Shavit_GetReplayBotStyle(target) : Shavit_GetBhopStyle(target);
 	int track = isReplay ? Shavit_GetReplayBotTrack(target) : Shavit_GetClientTrack(target);
 	style = (style == -1) ? 0 : style; // central replay bot probably
