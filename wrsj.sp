@@ -38,7 +38,7 @@ public Plugin myinfo = {
 	name = "Sourcejump World Record",
 	author = "rtldg & Nairda",
 	description = "Grabs WRs from Sourcejump's API",
-	version = "1.12",
+	version = "1.13",
 	url = "https://github.com/rtldg/wrsj"
 }
 
@@ -215,7 +215,6 @@ int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
 
 		if (StringToInt(info) == -1)
 		{
-			delete menu;
 			return 0;
 		}
 
@@ -238,14 +237,37 @@ int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
 
 		if (record.id != id)
 		{
-			delete menu;
 			return 0;
 		}
 
 		Menu submenu = new Menu(SubMenu_Handler);
 
-		char display[160];
+		char display[234];
 
+#if 1
+		FormatEx(display, sizeof(display),
+			"%s %s\n \n\
+			Time: %s (%s)\n\
+			Jumps: %d\n\
+			Strafes: %d (%.2f%%)\n\
+			Server: %s\n\
+			Date: %s\n\
+			%s%s%s\n ",
+			record.name, record.steamid,
+			record.time, record.wrDif,
+			record.jumps,
+			record.strafes, record.sync,
+			record.hostname,
+			record.date,
+			record.country[0] ? "Country: " : "", record.country, record.country[0] ? "\n" : ""
+		);
+		submenu.SetTitle(display);
+
+		FormatEx(display, sizeof(display), "%sA", record.steamid);
+		submenu.AddItem(display, "Open Steam profile", ITEMDRAW_DEFAULT);
+		FormatEx(display, sizeof(display), "%sB", record.steamid);
+		submenu.AddItem(display, "Open Sourcejump profile", ITEMDRAW_DEFAULT);
+#else
 		FormatEx(display, sizeof(display), "%s %s", record.name, record.steamid);
 		submenu.SetTitle(display);
 
@@ -260,13 +282,19 @@ int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
 		FormatEx(display, sizeof(display), "Date: %s", record.date);
 		submenu.AddItem("-1", display, ITEMDRAW_DISABLED);
 
+		if (record.country[0])
+		{
+			FormatEx(display, sizeof(display), "Country: %s", record.country);
+			submenu.AddItem("-1", display, ITEMDRAW_DISABLED);
+		}
+#endif
+
 		submenu.ExitBackButton = true;
 		submenu.ExitButton = true;
 		submenu.Display(client, MENU_TIME_FOREVER);
 
 		gI_CurrentPagePosition[client] = GetMenuSelectionPosition();
 	}
-
 	else if (action == MenuAction_End)
 	{
 		delete menu;
@@ -277,10 +305,67 @@ int Handler_WRSJMenu(Menu menu, MenuAction action, int client, int choice)
 
 int SubMenu_Handler(Menu menu, MenuAction action, int client, int choice)
 {
-	if (action == MenuAction_Cancel && choice == MenuCancel_ExitBack)
+	static bool DONT_CLOSE_MENU = false;
+
+	if (action == MenuAction_Select)
+	{
+		char info[69];
+		menu.GetItem(choice, info, sizeof(info));
+
+		if (!info[0] || info[0] != '[')
+		{
+			return 0;
+		}
+
+		int len = strlen(info);
+		int type = info[len-1];
+		info[len-1] = 0;
+
+		if (type == 'A')
+		{
+			char url[192+1];
+			FormatEx(url, sizeof(url), "https://steamcommunity.com/profiles/%s", info);
+			ShowMOTDPanel(client, "you just lost The Game", url, MOTDPANEL_TYPE_URL);
+		}
+		else if (type == 'B')
+		{
+			char url[192+1];
+			FormatEx(url, sizeof(url), "https://www.sourcejump.net/players/%s", info);
+			ShowMOTDPanel(client, "you just lost The Game", url, MOTDPANEL_TYPE_URL);
+		}
+
+		DONT_CLOSE_MENU = true;
+		menu.Display(client, MENU_TIME_FOREVER);
+
+#if 0
+		if (StringToInt(info) == -1)
+		{
+			return 0;
+		}
+#endif
+	}
+	else if (action == MenuAction_Cancel && choice == MenuCancel_ExitBack)
 	{
 		BuildWRSJMenu(client, gS_ClientMap[client], gI_CurrentPagePosition[client]);
-		delete menu;
+	}
+	else if (action == MenuAction_End)
+	{
+		if (!DONT_CLOSE_MENU)
+			delete menu;
+		DONT_CLOSE_MENU = false;
+	}
+
+	return 0;
+}
+
+stock void UppercaseString(char[] str)
+{
+	int i, x;
+	while ((x = str[i]) != 0)
+	{
+		if ('a' <= x <= 'z')
+			str[i] -= ('a' - 'A');
+		++i;
 	}
 }
 
@@ -321,6 +406,8 @@ ArrayList CacheMap(char mapname[PLATFORM_MAX_PATH], JSON_Array json)
 		info.strafes = record.GetInt("strafes");
 		info.jumps = record.GetInt("jumps");
 		info.tier = record.GetInt("tier");
+		record.GetString("country", info.country, sizeof(info.country));
+		UppercaseString(info.country);
 
 		records.PushArray(info, sizeof(info));
 

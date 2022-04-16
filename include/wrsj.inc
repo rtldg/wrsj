@@ -18,7 +18,6 @@
 enum struct WRSJ_RecordInfo {
 	int id;
 	char name[32+1];
-	//char country[];
 	//char mapname[90]; // longest map name I've seen is bhop_pneumonoultramicroscopicsilicovolcanoconiosis_v3_001.bsp
 	char hostname[128];
 	char time[32];
@@ -30,6 +29,7 @@ enum struct WRSJ_RecordInfo {
 	float sync;
 	int strafes;
 	int jumps;
+	char country[33];
 }
 
 typeset WRSJ_QueryFinishedFunc
@@ -49,8 +49,8 @@ native bool WRSJ_QueryMap(const char[] map, bool cached_results_okay=true);
 /*
 void QueryFinished(const char map[PLATFORM_MAX_PATH], ArrayList records, any callerdata)
 {
-	PrintToServer("%s %d %d %xh", map, records, records?records.Length:-1, callerdata);
-	// example output: bhop_badges 0xFE1A03F7 42 0x69
+	PrintToServer("%s %d %xh", map, records, records?records.Length:-1, callerdata);
+	// example output: bhop_badges 42 0x69
 }
 
 Action Command_ASDF(int client, int args)
