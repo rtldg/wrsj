@@ -1,5 +1,9 @@
 /*
  * WRSJ by rtldg
+ * Contributions by Nairda (menu stuff), @sneak-it, and @akanora
+ * https://github.com/rtldg/wrsj/graphs/contributors
+ *
+ * Source repo: https://github.com/rtldg/wrsj
  *
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License, version 3.0, as published by the
@@ -32,13 +36,11 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define USERAGENT "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/35.0.1916.47 Safari/537.36 wrsj/1.0 (https://github.com/rtldg/wrsj)"
-
 public Plugin myinfo = {
 	name = "Sourcejump World Record",
 	author = "rtldg & Nairda",
 	description = "Grabs WRs from Sourcejump's API",
-	version = "1.13",
+	version = "1.14",
 	url = "https://github.com/rtldg/wrsj"
 }
 
@@ -538,14 +540,12 @@ bool RetrieveWRSJ(int client, char[] mapname, DataPack MOREPACKS=null)
 #if USE_RIPEXT
 	HTTPRequest http = new HTTPRequest(apiurl);
 	http.SetHeader("api-key", "%s", apikey);
-	//http.SetHeader("user-agent", USERAGENT); // doesn't work :(
 	http.Get(RequestCallback, pack);
 #else
 	Handle request;
 	if (!(request = SteamWorks_CreateHTTPRequest(k_EHTTPMethodGET, apiurl))
 	  || !SteamWorks_SetHTTPRequestHeaderValue(request, "api-key", apikey)
 	  || !SteamWorks_SetHTTPRequestHeaderValue(request, "accept", "application/json")
-	//|| !SteamWorks_SetHTTPRequestHeaderValue(request, "user-agent", USERAGENT)
 	  || !SteamWorks_SetHTTPRequestContextValue(request, pack)
 	  || !SteamWorks_SetHTTPRequestAbsoluteTimeoutMS(request, 4000)
 	//|| !SteamWorks_SetHTTPRequestRequiresVerifiedCertificate(request, true)
