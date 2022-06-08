@@ -40,7 +40,7 @@ public Plugin myinfo = {
 	name = "Sourcejump World Record",
 	author = "rtldg & Nairda",
 	description = "Grabs WRs from Sourcejump's API",
-	version = "1.14",
+	version = "1.15",
 	url = "https://github.com/rtldg/wrsj"
 }
 
@@ -167,6 +167,29 @@ public Action Shavit_OnTopLeftHUD(int client, int target, char[] topleft, int to
 		TrimString(topleft);
 
 	return Plugin_Changed;
+}
+
+Action Timer_Refresh(Handle timer, any data)
+{
+	RetrieveWRSJ(0, gS_CurrentMap);
+	return Plugin_Stop;
+}
+
+public void Shavit_OnWorldRecord(int client, int style, float time, int jumps, int strafes, float sync, int track)
+{
+	if (style != 0 || track != 0)
+		return;
+
+	ArrayList records;
+
+	if (!gS_Maps.GetValue(gS_CurrentMap, records) || !records || !records.Length)
+		return;
+
+	WRSJ_RecordInfo info;
+	records.GetArray(0, info);
+
+	if (time < StringToFloat(info.time))
+		CreateTimer(5.0, Timer_Refresh, 0, TIMER_FLAG_NO_MAPCHANGE);
 }
 
 void BuildWRSJMenu(int client, char[] mapname, int first_item=0)
