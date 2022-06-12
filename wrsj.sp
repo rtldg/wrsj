@@ -40,7 +40,7 @@ public Plugin myinfo = {
 	name = "Sourcejump World Record",
 	author = "rtldg & Nairda",
 	description = "Grabs WRs from Sourcejump's API",
-	version = "1.15",
+	version = "1.16",
 	url = "https://github.com/rtldg/wrsj"
 }
 
@@ -450,7 +450,7 @@ ArrayList CacheMap(char mapname[PLATFORM_MAX_PATH], JSON_Array json)
 #if USE_RIPEXT
 void RequestCallback(HTTPResponse response, DataPack pack, const char[] error)
 #else
-void ResponseBodyCallback(const char[] data, DataPack pack, int datalen)
+void ResponseBodyCallback(const char[] data, DataPack pack)
 #endif
 {
 	pack.Reset();
