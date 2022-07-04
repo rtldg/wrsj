@@ -1,4 +1,4 @@
-can use [sm-ripext](https://github.com/ErikMinekus/sm-ripext) or [SteamWorks](https://github.com/KyleSanderson/SteamWorks/releases) + [sm-json](https://github.com/clugg/sm-json)
+can use [sm-ripext](https://github.com/ErikMinekus/sm-ripext) or SteamWorks [[1](https://github.com/KyleSanderson/SteamWorks/releases)][[2](https://users.alliedmods.net/~kyles/builds/SteamWorks/)] + [sm-json](https://github.com/clugg/sm-json)
 
 config location is at `cstrike/cfg/sourcemod/plugin.wrsj.cfg`
 
