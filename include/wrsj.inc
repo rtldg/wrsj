@@ -17,6 +17,11 @@
  *
  */
 
+#if defined _wrsj_included
+	#endinput
+#endif
+#define _wrsj_included
+
 enum struct WRSJ_RecordInfo {
 	int id;
 	char name[32+1];
