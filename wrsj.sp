@@ -40,7 +40,7 @@ public Plugin myinfo = {
 	name = "Sourcejump World Record",
 	author = "rtldg & Nairda",
 	description = "Grabs WRs from Sourcejump's API",
-	version = "1.16",
+	version = "1.17",
 	url = "https://github.com/rtldg/wrsj"
 }
 
@@ -92,7 +92,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 public void OnPluginStart()
 {
-	gCV_SourceJumpAPIKey = new Convar("sj_api_key", "", "Replace with your unique api key.", FCVAR_PROTECTED);
+	gCV_SourceJumpAPIKey = new Convar("sj_api_key", "", "Replace with your unique api key. (or use 'SJPublicAPIKey')", FCVAR_PROTECTED);
 	gCV_SourceJumpAPIUrl = new Convar("sj_api_url", "https://sourcejump.net/api/records/", "Can be changed for testing.", FCVAR_PROTECTED);
 	gCV_SourceJumpDelay = new Convar("sj_api_delay", "1.0", "Minimum delay between requests to Sourcejump API.", 0, true, 0.5);
 	gCV_SourceJumpCacheSize = new Convar("sj_api_cache_size", "12", "Number of maps to cache from Sourcejump API.");
