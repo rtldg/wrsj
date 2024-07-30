@@ -473,7 +473,7 @@ void ResponseBodyCallback(const char[] data, DataPack pack)
 
 		if (client != 0)
 			PrintToChat(client, "WRSJ: Sourcejump API request failed");
-		LogError("WRSJ: Sourcejump API request failed");
+		LogError("WRSJ: Sourcejump API request failed. status = %d, error = '%s'", response.Status, error);
 		return;
 	}
 
@@ -528,7 +528,7 @@ public void RequestCompletedCallback(Handle request, bool bFailure, bool bReques
 
 		if (client != 0)
 			ReplyToCommand(client, "WRSJ: Sourcejump API request failed");
-		LogError("WRSJ: Sourcejump API request failed");
+		LogError("WRSJ: Sourcejump API request failed. bFailure = %d, bRequestSuccessful = %d, eStatusCode = %d", bFailure, bRequestSuccessful, eStatusCode);
 		return;
 	}
 
